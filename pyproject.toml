@@ -1,0 +1,24 @@
+[project]
+name = "fitcheck"
+version = "0.1.0"
+description = "Predict whether a Hugging Face LLM fits on your GPUs, and where the memory goes."
+readme = "README.md"
+requires-python = ">=3.10"
+# Must stay empty: the package also runs in the browser via Pyodide.
+dependencies = []
+
+[build-system]
+requires = ["uv_build>=0.12.23,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Network tests are skipped by default. Run them with: uv run pytest -m network
+addopts = "-m 'not network'"
+markers = ["network: talks to the Hugging Face Hub"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.10",
+]
