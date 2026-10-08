@@ -7,6 +7,9 @@ requires-python = ">=3.10"
 # Must stay empty: the package also runs in the browser via Pyodide.
 dependencies = []
 
+[project.scripts]
+fitcheck = "fitcheck.cli:main"
+
 [build-system]
 requires = ["uv_build>=0.12.23,<0.13.0"]
 build-backend = "uv_build"
