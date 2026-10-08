@@ -30,6 +30,16 @@ def main(argv: list[str] | None = None) -> None:
         "--lora-rank", type=int, help="LoRA rank on q/k/v/o; omit for full"
     )
     parser.add_argument("--dtype", default="bf16", choices=sorted(DTYPE_BYTES))
+    parser.add_argument(
+        "--seq-len", type=int, default=2048, help="tokens per sequence (default 2048)"
+    )
+    parser.add_argument(
+        "--micro-batch", type=int, default=1, help="sequences per GPU per step"
+    )
+    parser.add_argument("--attn", default="sdpa", choices=["sdpa", "eager"])
+    parser.add_argument(
+        "--checkpointing", action="store_true", help="activation checkpointing"
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -40,6 +50,10 @@ def main(argv: list[str] | None = None) -> None:
             offload_param=args.offload_param,
             lora_rank=args.lora_rank,
             dtype=args.dtype,
+            micro_batch=args.micro_batch,
+            seq_len=args.seq_len,
+            attn=args.attn,
+            checkpointing=args.checkpointing,
         )
         config, tensors = hub.load(args.model, revision=args.revision)
         model = from_config(args.model, config, tensors)
@@ -66,23 +80,46 @@ def main(argv: list[str] | None = None) -> None:
         f"ZeRO-{args.zero} on {args.gpus} GPU(s)"
         + (f", offload {' and '.join(offload)}" if offload else "")
     )
+    ckpt = "checkpointing" if args.checkpointing else "no checkpointing"
+    print(
+        f"micro-batch {args.micro_batch} x {args.seq_len} tokens, "
+        f"{args.attn} attention, {ckpt}"
+    )
     print()
-    print("Per GPU            GiB")
+    print("Per GPU               GiB")
     for label, value in [
         ("weights", est.weights),
         ("gradients", est.grads),
         ("optimizer", est.optimizer),
+        ("activations", est.activations),
+        ("logits and loss", est.logits),
         ("overhead", est.overhead),
         ("total", est.gpu_total),
     ]:
-        print(f"  {label:<12}{value / GIB:>8.2f}")
+        shown = "n/a" if value is None else f"{value / GIB:.2f}"
+        print(f"  {label:<16}{shown:>7}")
     if est.cpu:
         print(f"CPU RAM for offload, all ranks: {est.cpu / GIB:.2f} GiB")
     print()
+    if est.activations is None:
+        kind = model.config.get("model_type")
+        print(
+            f"No activation formula for {kind!r} yet: the total is model states only."
+        )
+    elif est.step > est.activations + est.logits:
+        print(
+            "The peak is at the optimizer step: its fp32 gradient copy "
+            f"({est.step / GIB:.2f} GiB) counts instead of activations."
+        )
+    if model.family == "qwen3_5":
+        print(
+            "Linear-attention layers are counted for transformers' PyTorch "
+            "fallback, used when flash-linear-attention is not installed."
+        )
     if args.gpu_mem is not None:
         fits = est.gpu_total <= args.gpu_mem * GIB
         print(f"Fits in {args.gpu_mem:g} GiB: {'yes' if fits else 'no'}")
-    print("Activations are not counted yet, so treat this as a lower bound.")
+    print("Not yet calibrated against measured runs.")
 
 
 def _count(n: int) -> str:
