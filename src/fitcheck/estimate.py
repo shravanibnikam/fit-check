@@ -64,17 +64,15 @@ class Estimate:
 
 
 def lora_params(model: Model, rank: int) -> int:
-    """Adapter parameters for LoRA on the q, k, v and o projections of every layer.
+    """Adapter parameters for LoRA on every q, k, v and o projection.
 
     LoRA freezes a Linear(in, out) and trains A (rank x in) and B (out x rank)
     beside it, adding rank * (in + out) parameters (Hu et al. 2021,
-    arXiv:2106.09685). With grouped-query attention k and v are narrower.
+    arXiv:2106.09685). The shapes come from the checkpoint, so grouped-query
+    attention, Qwen3.5's gated q_proj and Gemma 4's layers without K/V weights
+    are counted as they are.
     """
-    h = model.hidden_size
-    q = model.num_heads * model.head_dim
-    kv = model.num_kv_heads * model.head_dim
-    per_layer = (h + q) + 2 * (h + kv) + (q + h)  # q_proj, k_proj, v_proj, o_proj
-    return rank * per_layer * model.num_layers
+    return rank * sum(n_in + n_out for n_in, n_out in model.lora_shapes)
 
 
 def estimate(model: Model, setup: Setup) -> Estimate:
