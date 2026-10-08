@@ -21,6 +21,11 @@ addopts = "-m 'not network'"
 markers = ["network: talks to the Hugging Face Hub"]
 
 [dependency-groups]
+check = [
+    "peft>=0.21",
+    "torch>=2.14",
+    "transformers>=5.19",
+]
 dev = [
     "pytest>=9.1.1",
     "ruff>=0.16.10",
