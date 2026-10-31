@@ -32,9 +32,41 @@ def test_prints_breakdown_and_verdict(folder, capsys):
     assert "1.0M params" in out
     assert "4 heads (2 KV) of 16" in out
     assert "micro-batch 1 x 2048 tokens, sdpa attention" in out
-    # No model_type, so no activation formula: model states only.
+    # No model_type, so no activation formula: model states only, and the
+    # 16 MiB that fit are not enough to say yes.
     assert row(out, "activations") == "n/a"
-    assert "model states only" in out
+    assert "Not modeled: no activation formula for this model yet" in out
+    assert "Fits in 1 GiB: unknown" in out
+
+
+def test_says_no_when_the_counted_part_already_exceeds(folder, capsys):
+    main([folder, "--gpu-mem", "0.01"])
+    assert (
+        "Fits in 0.01 GiB: no, even without what is not modeled"
+        in capsys.readouterr().out
+    )
+
+
+def test_warns_about_layers_lora_cannot_wrap(tmp_path, make_safetensors, capsys):
+    config = {
+        **CONFIG,
+        "num_hidden_layers": 6,
+        "model_type": "llama",
+        "intermediate_size": 128,
+        "vocab_size": 100,
+    }
+    shapes = {
+        f"model.layers.{i}.self_attn.{t}.weight": [8, 8]
+        for i in range(6)
+        for t in ("q_proj", "k_proj", "v_proj", "o_proj")
+        # Layers 2-3 and 5 have no K/V projections.
+        if t in ("q_proj", "o_proj") or i in (0, 1, 4)
+    }
+    (tmp_path / "config.json").write_text(json.dumps(config))
+    (tmp_path / "model.safetensors").write_bytes(make_safetensors(shapes))
+    main([str(tmp_path), "--lora-rank", "8", "--gpu-mem", "1"])
+    out = capsys.readouterr().out
+    assert "LoRA: 3 of 6 layers have no k_proj, v_proj (layers 2-3, 5)" in out
     assert "Fits in 1 GiB: yes" in out
 
 

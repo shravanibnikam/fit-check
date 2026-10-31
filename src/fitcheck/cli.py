@@ -101,12 +101,20 @@ def main(argv: list[str] | None = None) -> None:
     if est.cpu:
         print(f"CPU RAM for offload, all ranks: {est.cpu / GIB:.2f} GiB")
     print()
-    if est.activations is None:
-        kind = model.config.get("model_type")
-        print(
-            f"No activation formula for {kind!r} yet: the total is model states only."
-        )
-    elif est.step > est.activations + est.logits:
+    for reason in model.unmodeled:
+        print(f"Not modeled: {reason}.")
+    if args.lora_rank is not None:
+        # Group targets missing from the same layers into one line.
+        gaps = {}
+        for target, layers in model.lora_missing.items():
+            gaps.setdefault(tuple(layers), []).append(target)
+        for layers, targets in gaps.items():
+            print(
+                f"LoRA: {len(layers)} of {model.num_layers} layers have no "
+                f"{', '.join(targets)} (layers {_ranges(layers)}); only the "
+                "targets found are counted."
+            )
+    if est.activations is not None and est.step > est.activations + est.logits:
         print(
             "The peak is at the optimizer step: its fp32 gradient copy "
             f"({est.step / GIB:.2f} GiB) counts instead of activations."
@@ -118,9 +126,28 @@ def main(argv: list[str] | None = None) -> None:
         )
     if args.gpu_mem is not None:
         fits = est.gpu_total <= args.gpu_mem * GIB
-        print(f"Fits in {args.gpu_mem:g} GiB: {'yes' if fits else 'no'}")
+        # What is left out only adds memory, so "no" holds; "yes" would not.
+        if not fits and model.unmodeled:
+            verdict = "no, even without what is not modeled"
+        elif not fits:
+            verdict = "no"
+        elif model.unmodeled:
+            verdict = "unknown, because the estimate leaves out what is listed above"
+        else:
+            verdict = "yes"
+        print(f"Fits in {args.gpu_mem:g} GiB: {verdict}")
     print("Not yet calibrated against measured runs.")
 
 
 def _count(n: int) -> str:
     return f"{n / 1e9:.2f}B" if n >= 1e9 else f"{n / 1e6:.1f}M"
+
+
+def _ranges(ns) -> str:
+    """[0, 1, 2, 4, 5, 7] -> "0-2, 4-5, 7"."""
+    out, start = [], ns[0]
+    for a, b in zip(ns, [*ns[1:], None]):
+        if b != a + 1:
+            out.append(f"{start}-{a}" if a > start else f"{start}")
+            start = b
+    return ", ".join(out)
