@@ -1,16 +1,21 @@
-"""Command line: fitcheck MODEL [options]."""
+"""Command line: fitcheck MODEL [options], or fitcheck calibrate RESULTS."""
 
 import argparse
 import sys
 
 from fitcheck import hub
-from fitcheck.estimate import DTYPE_BYTES, Setup, estimate
+from fitcheck.estimate import CALIBRATION, DTYPE_BYTES, Setup, estimate
 from fitcheck.model import from_config
 
 GIB = 1024**3
 
 
 def main(argv: list[str] | None = None) -> None:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["calibrate"]:
+        from fitcheck import calibrate
+
+        return calibrate.main(argv[1:])
     parser = argparse.ArgumentParser(
         prog="fitcheck",
         description="Estimate per-GPU training memory for a Hugging Face model.",
@@ -136,7 +141,20 @@ def main(argv: list[str] | None = None) -> None:
         else:
             verdict = "yes"
         print(f"Fits in {args.gpu_mem:g} GiB: {verdict}")
-    print("Not yet calibrated against measured runs.")
+    if CALIBRATION:
+        prov = CALIBRATION["provenance"]
+        errors = [h["max_abs_error"] for h in CALIBRATION["held_out"].values()]
+        held = (
+            f"; held-out error up to {max(errors):.0%} of reserved memory"
+            if errors
+            else ""
+        )
+        print(
+            f"Calibrated on {', '.join(prov['models'])} runs on {', '.join(prov['gpu'])}"
+            f"{held}. Other models and GPUs are extrapolated."
+        )
+    else:
+        print("Not yet calibrated against measured runs.")
 
 
 def _count(n: int) -> str:
