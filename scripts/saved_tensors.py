@@ -2,17 +2,27 @@
 
 For small random-weight models that keep each family's structure (grouped-query
 attention, sliding windows, shared K/V, per-layer embeddings, linear attention),
-this runs one training forward pass on CPU and adds up the bytes of every
-distinct storage that autograd keeps for backward, by decoder layer. It then
-compares those bytes with fitcheck.activations, bucket by bucket.
+this runs one training forward pass and adds up the bytes of every distinct
+storage that autograd keeps for backward, by decoder layer. It then compares
+those bytes with fitcheck.activations, bucket by bucket.
 
-These are exact byte counts of saved tensors, not GPU measurements: allocator
-overhead, CUDA workspaces and transient peaks are left to the Phase 3
+On CPU it checks SDPA and eager in bf16 and SDPA in fp32. With --device cuda it
+checks SDPA in fp16, the T4 calibration setup, where PyTorch picks the CUDA
+memory-efficient kernel, so it shows what that kernel saves.
+
+These are exact byte counts of saved tensors, not memory measurements:
+allocator overhead, CUDA workspaces and transient peaks are left to the Phase 3
 calibration runs.
 
 Run:  uv run --group check python scripts/saved_tensors.py [-v]
+      python scripts/saved_tensors.py --device cuda --json saved_tensors_cuda.json
 """
 
+import argparse
+import datetime
+import importlib.metadata
+import importlib.util
+import json
 import sys
 
 import torch
@@ -27,13 +37,6 @@ from transformers import (
 )
 
 from fitcheck import activations, estimate, model
-
-# HF picks SDPA's native grouped-query path per device. On macOS the MPS check
-# also enables it for masked CPU calls. Pin the CUDA rule (use_gqa_in_sdpa in
-# transformers/integrations/sdpa_attention.py) so CPU runs match a GPU.
-hf_sdpa.use_gqa_in_sdpa = lambda mask, k, v: (
-    mask is None and k.shape[-1] == v.shape[-1] <= 256
-)
 
 SLIDING, FULL, LINEAR = "sliding_attention", "full_attention", "linear_attention"
 
@@ -138,11 +141,19 @@ SEQ = {
     "gemma4-31b": 40,
     "qwen3.5": 100,
 }
+# On CUDA, multiples of 32: the memory-efficient kernel pads its logsumexp to a
+# multiple of 32 queries (kAlignLSE in mem_eff_attention/kernel_forward.h),
+# which the formulas leave out. The sweep's lengths are multiples of 512.
+CUDA_SEQ = {name: 96 if name == "qwen3.5" else 64 for name in SEQ}
+CASES = {
+    "cpu": (("sdpa", "bf16"), ("eager", "bf16"), ("sdpa", "fp32")),
+    "cuda": (("sdpa", "fp16"),),
+}
 BATCH = 2
-DTYPES = {"bf16": torch.bfloat16, "fp32": torch.float32}
+DTYPES = {"bf16": torch.bfloat16, "fp16": torch.float16, "fp32": torch.float32}
 
 
-def measure(config, attn, lora, dtype):
+def measure(config, attn, lora, dtype, device, s):
     """Saved bytes per bucket: shared, embed, L0..Ln, head, held."""
     torch.manual_seed(0)
     lm = AutoModelForCausalLM.from_config(config, attn_implementation=attn)
@@ -155,7 +166,7 @@ def measure(config, attn, lora, dtype):
         )
     # deepspeed.initialize casts every parameter, LoRA adapters included, to the
     # training dtype (DeepSpeedEngine._cast_module_mixed_precision).
-    lm = lm.to(DTYPES[dtype]).train()
+    lm = lm.to(device, DTYPES[dtype]).train()
     base = lm.get_base_model() if lora else lm
     states = {x.untyped_storage().data_ptr() for x in [*lm.parameters(), *lm.buffers()]}
 
@@ -176,8 +187,7 @@ def measure(config, attn, lora, dtype):
         kept.append(x)  # keep storages alive so their addresses stay unique
         return x
 
-    s = SEQ[next(k for k, v in CONFIGS.items() if v is config)]
-    ids = torch.randint(0, config.vocab_size, (BATCH, s))
+    ids = torch.randint(0, config.vocab_size, (BATCH, s), device=device)
     states.add(ids.untyped_storage().data_ptr())
     with torch.autograd.graph.saved_tensors_hooks(pack, lambda x: x):
         out = lm(input_ids=ids, labels=ids)
@@ -208,10 +218,10 @@ def measure(config, attn, lora, dtype):
     logits = out.logits.untyped_storage()
     if logits.data_ptr() not in first:
         buckets["held"] = logits.nbytes()
-    return buckets, s
+    return buckets
 
 
-def predict(name, config, attn, lora, s, dtype):
+def predict(name, config, attn, lora, s, dtype, device):
     cfg = config.to_dict()
     family = model.FAMILIES[cfg["model_type"]]
     setup = estimate.Setup(
@@ -222,7 +232,7 @@ def predict(name, config, attn, lora, s, dtype):
     buckets = {"shared": parts.shared, "embed": parts.embed, "head": parts.head}
     buckets.update({f"L{i}": n for i, n in enumerate(parts.layers)})
     buckets["held"] = parts.held
-    if name == "qwen3.5" and attn == "sdpa":
+    if name == "qwen3.5" and attn == "sdpa" and device == "cpu":
         # CPU-only: PyTorch's CPU flash kernel returns its output in the query's
         # layout, and Qwen3.5's partial-rotary cat leaves q contiguous, so the
         # transpose before the output gate copies. CUDA kernels return the
@@ -235,28 +245,88 @@ def predict(name, config, attn, lora, s, dtype):
 
 
 def main():
-    verbose = "-v" in sys.argv
-    failures = 0
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--device", choices=["cpu", "cuda"], default="cpu")
+    parser.add_argument("--json", help="also write the results to this file")
+    parser.add_argument("-v", action="store_true", help="print every bucket")
+    args = parser.parse_args()
+    if args.device == "cpu":
+        # HF picks SDPA's native grouped-query path per device, and on macOS the
+        # MPS check also enables it for masked CPU calls. Pin the CUDA rule
+        # (use_gqa_in_sdpa in transformers/integrations/sdpa_attention.py) so
+        # CPU runs match a GPU. On CUDA the real rule runs.
+        hf_sdpa.use_gqa_in_sdpa = lambda mask, k, v: (
+            mask is None and k.shape[-1] == v.shape[-1] <= 256
+        )
+    seq = SEQ if args.device == "cpu" else CUDA_SEQ
+    cases = []
     for name, config in CONFIGS.items():
         for lora in (None, 8):
-            for attn, dtype in (("sdpa", "bf16"), ("eager", "bf16"), ("sdpa", "fp32")):
-                measured, s = measure(config, attn, lora, dtype)
-                predicted = predict(name, config, attn, lora, s, dtype)
+            for attn, dtype in CASES[args.device]:
+                s = seq[name]
+                measured = measure(config, attn, lora, dtype, args.device, s)
+                predicted = predict(name, config, attn, lora, s, dtype, args.device)
                 keys = sorted(set(measured) | set(predicted), key=_order)
                 bad = [k for k in keys if measured.get(k, 0) != predicted.get(k, 0)]
                 total = sum(measured.values())
                 kind = "lora" if lora else "full"
                 label = f"{name:13} {kind:4} {attn:5} {dtype:4} s={s:<4}"
                 print(f"{label} {total:>10,} bytes  {'ok' if not bad else 'MISMATCH'}")
-                for k in keys if verbose or bad else []:
+                for k in keys if args.v or bad else []:
                     m, p = measured.get(k, 0), predicted.get(k, 0)
                     print(
                         f"    {k:7} measured {m:>9,}  predicted {p:>9,}  diff {p - m:+,}"
                     )
-                failures += bool(bad)
+                cases.append(
+                    {
+                        "config": name,
+                        "lora_rank": lora,
+                        "attn": attn,
+                        "dtype": dtype,
+                        "seq_len": s,
+                        "batch": BATCH,
+                        "ok": not bad,
+                        "buckets": {
+                            k: [measured.get(k, 0), predicted.get(k, 0)] for k in keys
+                        },
+                    }
+                )
+    failures = sum(not c["ok"] for c in cases)
+    if args.json:
+        with open(args.json, "w") as f:
+            json.dump(
+                {
+                    **_environment(args.device),
+                    "all_match": not failures,
+                    "cases": cases,
+                },
+                f,
+                indent=1,
+            )
     if failures:
         sys.exit(f"{failures} case(s) do not match")
     print("all cases match exactly")
+
+
+def _environment(device):
+    """Versions and hardware, so fitcheck calibrate can match them to the runs."""
+    env = {
+        "device": device,
+        "date": datetime.datetime.now(datetime.timezone.utc).isoformat(
+            timespec="seconds"
+        ),
+        "torch": torch.__version__,
+        "cuda": torch.version.cuda,
+        "transformers": importlib.metadata.version("transformers"),
+        "peft": importlib.metadata.version("peft"),
+        # Either would replace the PyTorch fallbacks the Qwen3.5 formula counts.
+        "flash_linear_attention": importlib.util.find_spec("fla") is not None,
+        "causal_conv1d": importlib.util.find_spec("causal_conv1d") is not None,
+    }
+    if device == "cuda":
+        env["gpu"] = torch.cuda.get_device_name()
+        env["capability"] = ".".join(map(str, torch.cuda.get_device_capability()))
+    return env
 
 
 def _order(key):
