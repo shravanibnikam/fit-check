@@ -37,9 +37,11 @@ def bare_prediction(model, setup):
     return estimate(from_config(model, config, tensors), setup).gpu_total
 
 
-def run(model, factor, *, seq_len=1024, applied=8, status="ok", torch="2.14.1"):
+def run(
+    model, factor, *, seq_len=1024, applied=8, status="ok", torch="2.14.1", **setup
+):
     """A results.jsonl line whose ranks reserved factor x the bare prediction."""
-    setup = Setup(num_gpus=2, zero_stage=2, dtype="fp16", seq_len=seq_len)
+    setup = Setup(num_gpus=2, zero_stage=2, dtype="fp16", seq_len=seq_len, **setup)
     predicted = bare_prediction(model, setup)
     rank = {
         "status": status,
@@ -48,9 +50,10 @@ def run(model, factor, *, seq_len=1024, applied=8, status="ok", torch="2.14.1"):
         "max_reserved": round(factor * predicted),
         "reserved_end": round(factor * predicted),
         "device_used_end": round(factor * predicted) + 400 * 2**20,
+        "peak_host_rss": 3 * GIB,
     }
     return {
-        "run": f"{model}-s{seq_len}-a{applied}",
+        "run": f"{model}-s{seq_len}-a{applied}{'-oo' * setup.offload_optimizer}",
         "status": status,
         "model": model,
         "revision": "main",
@@ -135,3 +138,19 @@ def test_reports_verdicts_on_out_of_memory_runs(tmp_path, models, capsys):
     out = capsys.readouterr().out
     assert "Fits verdict right on 2 of 3 runs." in out
     assert "wrong: " in out and "(oom, predicted fit)" in out
+
+
+def test_reports_host_memory_of_offload_runs(tmp_path, models, capsys):
+    small, large = models
+    runs = [run(small, 1.2), run(large, 1.2), run(large, 1.2, offload_optimizer=True)]
+    cal = fit(tmp_path, write(tmp_path, runs, check=True))
+    out = capsys.readouterr().out
+    section = out.split("Host memory of the offload runs")[1].splitlines()
+    rows = [line for line in section if line.endswith("6.00")]
+    # Only the offload run, with both ranks' 3 GiB summed. 16 bytes per
+    # parameter of the large model: master copy, two moments, fp32 gradient.
+    assert len(rows) == 1 and "-oo" in rows[0]
+    config, tensors = hub.load(large)
+    params = from_config(large, config, tensors).num_params
+    assert f"{16 * params / GIB:.2f}" in rows[0]
+    assert "cpu" not in json.dumps(cal)  # reported, not fitted

@@ -25,6 +25,7 @@ import importlib.metadata
 import json
 import os
 import platform
+import resource
 import subprocess
 import sys
 import traceback
@@ -90,6 +91,9 @@ def main():
         oom = isinstance(e, torch.OutOfMemoryError) or "out of memory" in str(e)
         record["status"] = "oom" if oom else "error"
         record["error"] = traceback.format_exc()[-4000:]
+    # This rank's peak resident host memory, for comparison with fitcheck's CPU
+    # estimate. ru_maxrss is in KiB on Linux (getrusage(2)).
+    record["peak_host_rss"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024
     os.makedirs(args.out_dir, exist_ok=True)
     path = os.path.join(args.out_dir, f"rank{rank}.json")
     with open(path + ".tmp", "w") as f:

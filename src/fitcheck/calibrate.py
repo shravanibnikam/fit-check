@@ -71,6 +71,7 @@ def main(argv: list[str] | None = None) -> None:
     valid = [r for r in rows if r["valid"]]
     held_out = _held_out(valid)
     _print_report(rows)
+    _print_host_memory(rows)
     if not valid:
         sys.exit("fitcheck calibrate: no valid runs to fit")
 
@@ -162,6 +163,17 @@ def _row(run: dict, models: dict) -> dict:
         "predicted": est.gpu_total - est.overhead,
         "valid": run["status"] == "ok" and applied >= MIN_APPLIED_STEPS,
         "total_memory": min((r["total_memory"] for r in ranks), default=None),
+        "offload": run["setup"]["offload_optimizer"] or run["setup"]["offload_param"],
+        # Offloaded optimizer and parameter state on the host, all ranks.
+        "cpu_predicted": est.cpu,
+        # Peak resident memory summed over ranks, unless a rank wrote nothing
+        # (killed by the host's OOM killer, for instance).
+        "cpu_measured": (
+            sum(r["peak_host_rss"] for r in ranks)
+            if len(ranks) == run["setup"]["num_gpus"]
+            and all("peak_host_rss" in r for r in ranks)
+            else None
+        ),
     }
     if run["status"] == "ok":
         # The rank that needed the most, as that is the one that runs out.
@@ -257,6 +269,27 @@ def _print_report(rows: list[dict]) -> None:
     print(
         "GiB per GPU. error: bare prediction against measured allocated. "
         "held out: fitted prediction against measured reserved."
+    )
+
+
+def _print_host_memory(rows: list[dict]) -> None:
+    """Offload runs: predicted against measured host memory. Reported, not fitted."""
+    offload = [r for r in rows if r["offload"]]
+    if not offload:
+        return
+    print()
+    print("Host memory of the offload runs, all ranks (reported, not fitted):")
+    print(f"{'run':<42} {'status':<8}{'predicted':>11}{'measured':>10}")
+    for r in offload:
+        measured = r["cpu_measured"]
+        print(
+            f"{r['run']:<42} {r['status']:<8}{r['cpu_predicted'] / GIB:>11.2f}"
+            + (f"{measured / GIB:>10.2f}" if measured is not None else f"{'n/a':>10}")
+        )
+    print(
+        "GiB. predicted: the offloaded optimizer and parameter state. measured: "
+        "each rank's peak resident memory, summed, which also holds the model "
+        "as loaded on the CPU and the Python, PyTorch and CUDA runtimes."
     )
 
 
