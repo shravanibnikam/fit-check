@@ -16,6 +16,8 @@ build-backend = "uv_build"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# calibrate/sweep.py is tested offline; run_one.py needs a GPU and is not imported.
+pythonpath = ["calibrate"]
 # Network tests are skipped by default. Run them with: uv run pytest -m network
 addopts = "-m 'not network'"
 markers = ["network: talks to the Hugging Face Hub"]
