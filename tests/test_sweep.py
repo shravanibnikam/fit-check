@@ -1,4 +1,7 @@
 import json
+import re
+import sys
+from pathlib import Path
 
 import pytest
 import sweep
@@ -66,3 +69,28 @@ def test_merge_status(tmp_path, records, code, status):
     assert line["applied_steps"] == (6 if status == "ok" else None)
     assert ("log_tail" in line) == (status != "ok")
     assert all("env" not in r for r in line["ranks"])
+
+
+def test_only_runs_the_named_runs(monkeypatch, capsys):
+    smoke = ["0.5B-z3-oo-op-s1024-mb1-sdpa-g2", "0.5B-z2-s1024-mb1-sdpa-g2"]
+    argv = ["sweep.py", "--results", "/nonexistent", "--work-dir", "/w", "--dry-run"]
+    monkeypatch.setattr(sys, "argv", [*argv, "--only", *smoke])
+    sweep.main()
+    lines = capsys.readouterr().out.splitlines()
+    # In grid order, whatever order they were named in.
+    assert [line.rsplit("/", 1)[1] for line in lines] == smoke[::-1]
+    monkeypatch.setattr(sys, "argv", [*argv, "--only", "0.5B-z9-s1024-mb1-sdpa-g2"])
+    with pytest.raises(SystemExit):
+        sweep.main()
+
+
+def test_notebook_smoke_runs_are_in_the_grid():
+    nb = json.loads(
+        (Path(__file__).parents[1] / "calibrate/calibration.ipynb").read_text()
+    )
+    source = "".join(line for c in nb["cells"] for line in c["source"])
+    smoke = re.search(r'SMOKE_RUNS = "([^"]+)"', source).group(1).split()
+    assert len(smoke) == 2
+    assert set(smoke) <= {sweep.run_id(*r) for r in sweep.grid()}
+    # The smoke push flips exactly this line.
+    assert source.splitlines().count("SMOKE = False") == 1

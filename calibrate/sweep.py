@@ -6,8 +6,9 @@ results.jsonl.
 
 Each run is one launch of calibrate/run_one.py through the DeepSpeed launcher.
 A run still going after TIMEOUT_S is killed with all its ranks. Runs already in
-results.jsonl are skipped, so the sweep resumes after a restart. --dry-run prints
-every command without running anything.
+results.jsonl are skipped, so the sweep resumes after a restart. --only runs just
+the named runs (the notebook's smoke mode), and --dry-run prints every command
+without running anything.
 """
 
 import argparse
@@ -176,6 +177,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--results", required=True, help="results.jsonl to append to")
     p.add_argument("--work-dir", required=True, help="per-run rank files and logs")
+    p.add_argument("--only", nargs="+", metavar="RUN", help="run only these run ids")
     p.add_argument("--dry-run", action="store_true", help="print the commands only")
     args = p.parse_args()
 
@@ -184,9 +186,12 @@ def main():
         with open(args.results) as f:
             done = {json.loads(line)["run"] for line in f if line.strip()}
     runs = grid()
+    unknown = set(args.only or []) - {run_id(*r) for r in runs}
+    if unknown:
+        p.error(f"not in the grid: {', '.join(sorted(unknown))}")
     for i, (size, setup) in enumerate(runs):
         rid = run_id(size, setup)
-        if rid in done:
+        if rid in done or (args.only and rid not in args.only):
             continue
         out_dir = os.path.join(args.work_dir, rid)
         # A fresh port per run, so a socket left over from a killed run can't
