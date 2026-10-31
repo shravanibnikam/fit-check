@@ -14,6 +14,16 @@ def test_grid_is_the_55_planned_runs():
     assert "1.5B-z0-lora16-s1024-mb1-sdpa-g1" in ids
 
 
+def test_host_heavy_runs_come_last():
+    heavy = [
+        size == "1.5B" and (s.offload_optimizer or s.offload_param)
+        for size, s in sweep.grid()
+    ]
+    n = sum(heavy)
+    assert n == 15
+    assert heavy == [False] * (55 - n) + [True] * n
+
+
 def test_command_passes_every_setting():
     size, s = next(
         (size, s)

@@ -75,7 +75,14 @@ def grid() -> list[tuple[str, Setup]]:
     for size, kw in runs:
         setup = Setup(**{"num_gpus": 2, "dtype": "fp16", "seq_len": 1024, **kw})
         unique.setdefault(run_id(size, setup), (size, setup))
-    return list(unique.values())
+    # 1.5B with offload last: those runs need the most host RAM (Kaggle has
+    # about 29 GB), so if one takes the session down, every other run is
+    # already in results.jsonl. sorted is stable, so the rest keep their order.
+    return sorted(unique.values(), key=lambda r: _host_heavy(*r))
+
+
+def _host_heavy(size: str, s: Setup) -> bool:
+    return size == "1.5B" and (s.offload_optimizer or s.offload_param)
 
 
 def run_id(size: str, s: Setup) -> str:
