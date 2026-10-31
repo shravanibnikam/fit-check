@@ -10,7 +10,9 @@ It estimates the training peak per GPU:
 - Activations for a given micro-batch and sequence length, with SDPA or eager attention and with or without activation checkpointing, including the logits and loss, which are often the largest single allocation.
 - The peak as the model states plus the larger of the activations and the fp32 gradient copy made at the optimizer step.
 
-Activation formulas cover Llama 3 and other Llama-architecture models (also Mistral and Qwen2.5), Gemma 4 (E2B, E4B, 12B, 31B) and Qwen3.5 (0.8B to 27B, and Qwen3.8-27B). Other architectures, including mixture-of-experts models, get model states only. The formulas count the tensors PyTorch keeps for backward, and `scripts/saved_tensors.py` checks them against autograd byte for byte. They are not yet calibrated against GPU runs, so allocator overhead and short-lived buffers are missing. Calibration, DeepSpeed config generation and vLLM serving estimates are planned.
+Activation formulas cover Llama 3 and other Llama-architecture models (also Mistral and Qwen2, including their sliding-window layers), Gemma 4 (E2B, E4B, 12B, 31B) and Qwen3.5 (0.8B to 27B, and Qwen3.8-27B). Other architectures, including mixture-of-experts models, get model states only.
+
+When a model uses something FitCheck doesn't model yet (mixture-of-experts layers, MLA attention, a quantized checkpoint, or an architecture without an activation formula), the output says so, and the verdict is "unknown" unless the part it counts already exceeds the GPU. With LoRA, it also lists the layers that lack any of q_proj, k_proj, v_proj or o_proj. The formulas count the tensors PyTorch keeps for backward, and `scripts/saved_tensors.py` checks them against autograd byte for byte. They are not yet calibrated against GPU runs, so allocator overhead and short-lived buffers are missing. Calibration, DeepSpeed config generation and vLLM serving estimates are planned.
 
 ## Usage
 

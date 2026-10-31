@@ -65,6 +65,8 @@ Reading shapes from the checkpoint also handles models where that formula is wro
 
 The frozen base still costs bΨ in weights, partitioned only at stage 3. Gradients and optimizer states exist only for the adapters.
 
+When a decoder layer lacks one of the four targets, the CLI lists those layers, so a smaller count than expected is visible rather than silent. That is expected for Gemma 4 layers that reuse K/V, Gemma 4 global layers where K = V, and Qwen3.5's DeltaNet layers, and it is a real gap for MLA models, whose K/V projections have other names.
+
 ## Activations
 
 During the forward pass, autograd keeps some tensors for the backward pass. Those saved tensors are the activations. They are all alive at the start of backward, which is where training memory peaks. FitCheck counts them one op at a time in the Hugging Face modeling code (transformers 5.19), using two rules from PyTorch autograd (`tools/autograd/derivatives.yaml`):
@@ -125,7 +127,7 @@ Two things differ between CPU and CUDA, and the script handles both. HF's native
 
 ## Not modeled yet
 
-These are known gaps. Each should show up as error in the Phase 3 calibration runs or get its own term:
+These are known gaps. Each should show up as error in the Phase 3 calibration runs or get its own term. The last three are detected from `config.json`: the CLI names them and answers "unknown" instead of "yes", unless the part it counts already exceeds the GPU, since what is left out only adds memory.
 
 - Short-lived buffers other than the loss backward: matmul outputs before they are consumed, gradients of activations during backward, attention kernel workspaces.
 - Communication buckets (`reduce_bucket_size`, `allgather_bucket_size`), and the parameters stage 3 gathers and prefetches for the layer it is running.
@@ -133,8 +135,9 @@ These are known gaps. Each should show up as error in the Phase 3 calibration ru
 - Qwen3.5 with `flash-linear-attention` installed, and kernels from the `kernels` package.
 - Padding, which brings back masks and, on CUDA, K/V copies.
 - The CUDA context, and the gap between memory the allocator has reserved and memory actually allocated. These are the `CALIBRATE` constants in `estimate.py`, left at neutral values until measured.
-- Mixture-of-experts layers (Gemma 4 26B-A4B, Qwen3.5 MoE, Llama 4) and other architectures: FitCheck reports their model states only.
-- Quantized checkpoints (GPTQ, AWQ), whose packed tensors undercount Ψ.
+- Mixture-of-experts layers (Gemma 4 26B-A4B, Qwen3.5 MoE, Mixtral, DeepSeek, Llama 4), detected from `num_experts`, `num_local_experts` or `n_routed_experts`, and architectures without a formula: FitCheck reports their model states only. Gemma 4 26B-A4B shares `gemma4_text` with the dense Gemma 4 models, so the expert count, not the model type, decides.
+- Multi-head latent attention (DeepSeek, detected from `kv_lora_rank`): the head size shown is wrong and LoRA misses the latent K/V projections.
+- Quantized checkpoints (any `quantization_config`). Packed formats such as GPTQ and AWQ undercount Ψ.
 
 ## Sources
 
