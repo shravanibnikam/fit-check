@@ -1,13 +1,15 @@
-"""Per-GPU training memory for model states: weights, gradients and Adam states.
+"""Per-GPU training memory: model states, activations and the training peak.
 
-Follows the ZeRO paper's accounting (Rajbhandari et al. 2020,
-arXiv:1910.02054), checked against DeepSpeed's source. Activations are not
-modeled yet. Derivation and sources are in docs/memory-model.md.
+Model states (weights, gradients, Adam states) follow the ZeRO paper's
+accounting (Rajbhandari et al. 2020, arXiv:1910.02054), checked against
+DeepSpeed's source. Activations come from activations.py. Derivation and
+sources are in docs/memory-model.md.
 """
 
 import math
 from dataclasses import dataclass
 
+from fitcheck.activations import activations
 from fitcheck.model import Model
 
 # Bytes per element of the weights and gradients during training. DeepSpeed
@@ -15,6 +17,11 @@ from fitcheck.model import Model
 # enabled (DeepSpeedEngine._cast_module_mixed_precision in
 # deepspeed/runtime/engine.py), so one dtype covers the whole model.
 DTYPE_BYTES = {"fp32": 4, "fp16": 2, "bf16": 2}
+F32_BYTES = 4
+
+# ZeRO-3 steps the optimizer one sub-group of parameters at a time
+# (zero_optimization.sub_group_size, default 1e9 elements).
+ZERO3_SUB_GROUP = 1_000_000_000
 
 # Placeholders until Phase 3 fits them from measured runs. The neutral values
 # leave the estimate as bare theory.
@@ -30,6 +37,10 @@ class Setup:
     offload_param: bool = False
     lora_rank: int | None = None  # None means full fine-tuning
     dtype: str = "bf16"
+    micro_batch: int = 1  # sequences per GPU per forward pass
+    seq_len: int = 2048
+    attn: str = "sdpa"  # attn_implementation, "sdpa" or "eager"
+    checkpointing: bool = False  # model.gradient_checkpointing_enable()
 
     def __post_init__(self):
         if self.dtype not in DTYPE_BYTES:
@@ -40,6 +51,10 @@ class Setup:
             raise ValueError("num_gpus must be at least 1")
         if self.lora_rank is not None and self.lora_rank < 1:
             raise ValueError("lora_rank must be at least 1")
+        if self.micro_batch < 1 or self.seq_len < 1:
+            raise ValueError("micro_batch and seq_len must be at least 1")
+        if self.attn not in ("sdpa", "eager"):
+            raise ValueError('attn must be "sdpa" or "eager"')
         # Both rules come from DeepSpeedZeroConfig in deepspeed/runtime/zero/config.py.
         if self.offload_optimizer and self.zero_stage == 0:
             raise ValueError("optimizer offload needs ZeRO stage 1, 2 or 3")
@@ -54,27 +69,38 @@ class Estimate:
     weights: int
     grads: int
     optimizer: int
+    activations: int | None  # None when the architecture has no formula
+    logits: int | None  # output head: logits, loss and its backward
+    step: int  # fp32 gradient copy made at the optimizer step
     overhead: int
     cpu: int
     trainable_params: int
 
     @property
+    def peak_extra(self) -> int:
+        """What sits on top of the model states at the peak.
+
+        Activations peak at the start of backward and are gone by the
+        optimizer step, so only the larger of the two counts.
+        """
+        return max((self.activations or 0) + (self.logits or 0), self.step)
+
+    @property
     def gpu_total(self) -> int:
-        return self.weights + self.grads + self.optimizer + self.overhead
+        states = self.weights + self.grads + self.optimizer
+        return states + self.peak_extra + self.overhead
 
 
 def lora_params(model: Model, rank: int) -> int:
-    """Adapter parameters for LoRA on the q, k, v and o projections of every layer.
+    """Adapter parameters for LoRA on every q, k, v and o projection.
 
     LoRA freezes a Linear(in, out) and trains A (rank x in) and B (out x rank)
     beside it, adding rank * (in + out) parameters (Hu et al. 2021,
-    arXiv:2106.09685). With grouped-query attention k and v are narrower.
+    arXiv:2106.09685). The shapes come from the checkpoint, so grouped-query
+    attention, Qwen3.5's gated q_proj and Gemma 4's layers without K/V weights
+    are counted as they are.
     """
-    h = model.hidden_size
-    q = model.num_heads * model.head_dim
-    kv = model.num_kv_heads * model.head_dim
-    per_layer = (h + q) + 2 * (h + kv) + (q + h)  # q_proj, k_proj, v_proj, o_proj
-    return rank * per_layer * model.num_layers
+    return rank * sum(n_in + n_out for n_in, n_out in model.lora_shapes)
 
 
 def estimate(model: Model, setup: Setup) -> Estimate:
@@ -127,6 +153,25 @@ def estimate(model: Model, setup: Setup) -> Estimate:
     if setup.offload_param:
         cpu += b * total
 
-    allocated = weights + grads + optimizer
+    # At the step, DeepSpeed copies the gradients to fp32 for Adam: all of them
+    # without ZeRO (FP16_Optimizer.step in runtime/fp16/fused_optimizer.py),
+    # each rank's partition with ZeRO-1/2 (stage_1_and_2.py), one sub-group at
+    # a time with ZeRO-3 (_prepare_fp32_grad_for_sub_group in stage3.py). With
+    # offload the copy is on the CPU, and in fp32 training there is no copy.
+    step = 0
+    if setup.dtype != "fp32" and not setup.offload_optimizer:
+        if stage == 0:
+            step = F32_BYTES * trainable
+        elif stage < 3:
+            step = math.ceil(F32_BYTES * trainable / n)
+        else:
+            step = F32_BYTES * min(math.ceil(trainable / n), ZERO3_SUB_GROUP)
+
+    act = activations(model, setup, b)
+    layers, logits = (act.layers, act.logits) if act else (None, None)
+    extra = max((layers or 0) + (logits or 0), step)  # as Estimate.peak_extra
+    allocated = weights + grads + optimizer + extra
     overhead = round((RESERVED_OVER_ALLOCATED - 1) * allocated) + CUDA_CONTEXT_BYTES
-    return Estimate(weights, grads, optimizer, overhead, cpu, trainable)
+    return Estimate(
+        weights, grads, optimizer, layers, logits, step, overhead, cpu, trainable
+    )

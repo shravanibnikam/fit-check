@@ -30,6 +30,16 @@ def main(argv: list[str] | None = None) -> None:
         "--lora-rank", type=int, help="LoRA rank on q/k/v/o; omit for full"
     )
     parser.add_argument("--dtype", default="bf16", choices=sorted(DTYPE_BYTES))
+    parser.add_argument(
+        "--seq-len", type=int, default=2048, help="tokens per sequence (default 2048)"
+    )
+    parser.add_argument(
+        "--micro-batch", type=int, default=1, help="sequences per GPU per step"
+    )
+    parser.add_argument("--attn", default="sdpa", choices=["sdpa", "eager"])
+    parser.add_argument(
+        "--checkpointing", action="store_true", help="activation checkpointing"
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -40,6 +50,10 @@ def main(argv: list[str] | None = None) -> None:
             offload_param=args.offload_param,
             lora_rank=args.lora_rank,
             dtype=args.dtype,
+            micro_batch=args.micro_batch,
+            seq_len=args.seq_len,
+            attn=args.attn,
+            checkpointing=args.checkpointing,
         )
         config, tensors = hub.load(args.model, revision=args.revision)
         model = from_config(args.model, config, tensors)
@@ -66,24 +80,74 @@ def main(argv: list[str] | None = None) -> None:
         f"ZeRO-{args.zero} on {args.gpus} GPU(s)"
         + (f", offload {' and '.join(offload)}" if offload else "")
     )
+    ckpt = "checkpointing" if args.checkpointing else "no checkpointing"
+    print(
+        f"micro-batch {args.micro_batch} x {args.seq_len} tokens, "
+        f"{args.attn} attention, {ckpt}"
+    )
     print()
-    print("Per GPU            GiB")
+    print("Per GPU               GiB")
     for label, value in [
         ("weights", est.weights),
         ("gradients", est.grads),
         ("optimizer", est.optimizer),
+        ("activations", est.activations),
+        ("logits and loss", est.logits),
         ("overhead", est.overhead),
         ("total", est.gpu_total),
     ]:
-        print(f"  {label:<12}{value / GIB:>8.2f}")
+        shown = "n/a" if value is None else f"{value / GIB:.2f}"
+        print(f"  {label:<16}{shown:>7}")
     if est.cpu:
         print(f"CPU RAM for offload, all ranks: {est.cpu / GIB:.2f} GiB")
     print()
+    for reason in model.unmodeled:
+        print(f"Not modeled: {reason}.")
+    if args.lora_rank is not None:
+        # Group targets missing from the same layers into one line.
+        gaps = {}
+        for target, layers in model.lora_missing.items():
+            gaps.setdefault(tuple(layers), []).append(target)
+        for layers, targets in gaps.items():
+            print(
+                f"LoRA: {len(layers)} of {model.num_layers} layers have no "
+                f"{', '.join(targets)} (layers {_ranges(layers)}); only the "
+                "targets found are counted."
+            )
+    if est.activations is not None and est.step > est.activations + est.logits:
+        print(
+            "The peak is at the optimizer step: its fp32 gradient copy "
+            f"({est.step / GIB:.2f} GiB) counts instead of activations."
+        )
+    if model.family == "qwen3_5":
+        print(
+            "Linear-attention layers are counted for transformers' PyTorch "
+            "fallback, used when flash-linear-attention is not installed."
+        )
     if args.gpu_mem is not None:
         fits = est.gpu_total <= args.gpu_mem * GIB
-        print(f"Fits in {args.gpu_mem:g} GiB: {'yes' if fits else 'no'}")
-    print("Activations are not counted yet, so treat this as a lower bound.")
+        # What is left out only adds memory, so "no" holds; "yes" would not.
+        if not fits and model.unmodeled:
+            verdict = "no, even without what is not modeled"
+        elif not fits:
+            verdict = "no"
+        elif model.unmodeled:
+            verdict = "unknown, because the estimate leaves out what is listed above"
+        else:
+            verdict = "yes"
+        print(f"Fits in {args.gpu_mem:g} GiB: {verdict}")
+    print("Not yet calibrated against measured runs.")
 
 
 def _count(n: int) -> str:
     return f"{n / 1e9:.2f}B" if n >= 1e9 else f"{n / 1e6:.1f}M"
+
+
+def _ranges(ns) -> str:
+    """[0, 1, 2, 4, 5, 7] -> "0-2, 4-5, 7"."""
+    out, start = [], ns[0]
+    for a, b in zip(ns, [*ns[1:], None]):
+        if b != a + 1:
+            out.append(f"{start}-{a}" if a > start else f"{start}")
+            start = b
+    return ", ".join(out)

@@ -3,10 +3,34 @@ import pytest
 from fitcheck.estimate import Setup, estimate, lora_params
 from fitcheck.model import Model
 
+
+def attn_shapes(layers, h, q, kv):
+    """(in, out) of q/k/v/o in every layer, as from_config reads them."""
+    return ((h, q), (h, kv), (h, kv), (q, h)) * layers
+
+
 # Llama-2-7B shapes: 32 layers, hidden 4096, 32 heads of 128, no GQA.
-LLAMA2_7B = Model("llama2-7b", 6_738_415_616, 4096, 32, 32, 32, 128)
+LLAMA2_7B = Model(
+    "llama2-7b",
+    6_738_415_616,
+    4096,
+    32,
+    32,
+    32,
+    128,
+    lora_shapes=attn_shapes(32, 4096, 4096, 4096),
+)
 # Qwen2.5-0.5B shapes: 24 layers, hidden 896, 14 query heads, 2 KV heads of 64.
-QWEN_05B = Model("qwen2.5-0.5b", 494_032_768, 896, 24, 14, 2, 64)
+QWEN_05B = Model(
+    "qwen2.5-0.5b",
+    494_032_768,
+    896,
+    24,
+    14,
+    2,
+    64,
+    lora_shapes=attn_shapes(24, 896, 896, 128),
+)
 
 
 def model_states(m, **setup):
