@@ -3,6 +3,15 @@ import struct
 
 import pytest
 
+from fitcheck import estimate
+
+
+@pytest.fixture(autouse=True)
+def bare_theory(monkeypatch):
+    """Exact-byte tests check the formulas, not whatever calibration.json holds."""
+    monkeypatch.setattr(estimate, "RESERVED_OVER_ALLOCATED", 1.0)
+    monkeypatch.setattr(estimate, "CUDA_CONTEXT_BYTES", 0)
+
 
 @pytest.fixture
 def make_safetensors():

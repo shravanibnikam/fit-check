@@ -6,8 +6,10 @@ DeepSpeed's source. Activations come from activations.py. Derivation and
 sources are in docs/memory-model.md.
 """
 
+import json
 import math
 from dataclasses import dataclass
+from importlib.resources import files
 
 from fitcheck.activations import activations
 from fitcheck.model import Model
@@ -23,10 +25,20 @@ F32_BYTES = 4
 # (zero_optimization.sub_group_size, default 1e9 elements).
 ZERO3_SUB_GROUP = 1_000_000_000
 
-# Placeholders until Phase 3 fits them from measured runs. The neutral values
-# leave the estimate as bare theory.
-RESERVED_OVER_ALLOCATED = 1.0  # CALIBRATE: allocator cache and fragmentation
-CUDA_CONTEXT_BYTES = 0  # CALIBRATE: CUDA context, outside PyTorch's allocator
+
+def _calibration() -> dict | None:
+    """What `fitcheck calibrate` fitted from measured runs, if it has run."""
+    path = files("fitcheck") / "calibration.json"
+    return json.loads(path.read_text()) if path.is_file() else None
+
+
+# Fitted by `fitcheck calibrate` into calibration.json, with provenance. Until
+# then the neutral values leave the estimate as bare theory.
+CALIBRATION = _calibration()
+# CALIBRATE: allocator cache and fragmentation, reserved / allocated.
+RESERVED_OVER_ALLOCATED = CALIBRATION["reserved_over_allocated"] if CALIBRATION else 1.0
+# CALIBRATE: device memory outside PyTorch's allocator: CUDA context, NCCL.
+CUDA_CONTEXT_BYTES = CALIBRATION["cuda_context_bytes"] if CALIBRATION else 0
 
 
 @dataclass(frozen=True)
