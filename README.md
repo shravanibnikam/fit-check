@@ -12,7 +12,7 @@ It estimates the training peak per GPU:
 
 Activation formulas cover Llama 3 and other Llama-architecture models (also Mistral and Qwen2, including their sliding-window layers), Gemma 4 (E2B, E4B, 12B, 31B) and Qwen3.5 (0.8B to 27B, and Qwen3.8-27B). Other architectures, including mixture-of-experts models, get model states only.
 
-When a model uses something FitCheck doesn't model yet (mixture-of-experts layers, MLA attention, a quantized checkpoint, or an architecture without an activation formula), the output says so, and the verdict is "unknown" unless the part it counts already exceeds the GPU. With LoRA, it also lists the layers that lack any of q_proj, k_proj, v_proj or o_proj. The formulas count the tensors PyTorch keeps for backward, and `scripts/saved_tensors.py` checks them against autograd byte for byte. They are not yet calibrated against GPU runs, so allocator overhead and short-lived buffers are missing. Calibration, DeepSpeed config generation and vLLM serving estimates are planned.
+When a model uses something FitCheck doesn't model yet (mixture-of-experts layers, MLA attention, a quantized checkpoint, or an architecture without an activation formula), the output says so, and the verdict is "unknown" unless the part it counts already exceeds the GPU. With LoRA, it also lists the layers that lack any of q_proj, k_proj, v_proj or o_proj. The formulas count the tensors PyTorch keeps for backward, and `scripts/saved_tensors.py` checks them against autograd byte for byte. They are not yet calibrated against GPU runs, so allocator overhead and short-lived buffers are missing. The calibration harness is ready (a DeepSpeed training run, a 55-run sweep for Kaggle's 2x T4 in `calibrate/`, and `fitcheck calibrate`), but no constants have been fitted yet. DeepSpeed config generation and vLLM serving estimates are planned.
 
 ## Usage
 
@@ -52,5 +52,13 @@ uv run pytest -m network    # only the tests that hit the Hugging Face Hub
 uv run ruff check && uv run ruff format --check
 uv run --group check python scripts/saved_tensors.py   # needs torch, transformers, peft
 ```
+
+Calibration runs on Kaggle: open `calibrate/calibration.ipynb` there with GPU T4 x2 and Internet on, run it, and download `results.jsonl` and the `saved_tensors_*.json` files into `calibrate/results/`. Then:
+
+```
+uv run fitcheck calibrate calibrate/results/results.jsonl
+```
+
+It prints predicted against measured memory for every run and writes `src/fitcheck/calibration.json`. It won't fit until the CUDA saved-tensor check in `calibrate/results/saved_tensors_cuda.json` matches.
 
 The `check` group installs torch, transformers and peft for the saved-tensor check only. CI doesn't install it.

@@ -125,6 +125,27 @@ The training peak is the model states plus the larger of two moments:
 
 Two things differ between CPU and CUDA, and the script handles both. HF's native-GQA rule depends on the device, so the script pins the CUDA rule. And PyTorch's CPU attention kernel returns its output in the query's memory layout, which costs Qwen3.5 one extra copy that CUDA kernels don't make, so the script adds that copy to the prediction. These are exact counts of saved tensors, not GPU measurements. They don't cover the allocator, CUDA workspaces or other short-lived buffers.
 
+## Calibration
+
+The formulas above count what PyTorch allocates. The GPU has to provide more: PyTorch's caching allocator rounds requests up and keeps freed blocks for reuse (`c10/cuda/CUDACachingAllocator.cpp`; "Memory management" in PyTorch's CUDA notes), and the CUDA context, cuBLAS and NCCL take device memory outside the allocator. FitCheck covers both with the two `CALIBRATE` constants in `estimate.py`:
+
+    GPU total = r * allocated + C
+
+r is `RESERVED_OVER_ALLOCATED` and C is `CUDA_CONTEXT_BYTES`. Both come only from measured runs, through `calibration.json`, and stay at 1 and 0 until then.
+
+`calibrate/run_one.py` trains for 8 steps under DeepSpeed in fp16 and records, on every rank, `max_memory_allocated` and `max_memory_reserved` for the forward and backward pass and for the optimizer step separately, plus device memory in use (`cudaMemGetInfo`) and memory reserved at the end. Two details keep the measurement comparable to the formulas:
+
+- The model's outputs stay alive through backward and are freed before the optimizer step, as the formulas assume.
+- The dynamic loss scale starts at 1 instead of DeepSpeed's 2^16 (`initial_scale_power` 0). A step skipped on fp16 overflow returns before the fp32 gradient copy (`FP16_Optimizer.step` in `deepspeed/runtime/fp16/fused_optimizer.py`), so its peak would be too low. Runs with fewer than 4 applied steps don't count.
+
+`calibrate/sweep.py` runs 55 configurations on 2x T4: Qwen2.5-0.5B and 1.5B, each ZeRO stage and offload combination, sequence lengths 512 to 4096 with and without checkpointing, LoRA, eager attention, micro-batch 2, and one GPU. `fitcheck calibrate results.jsonl` then fits
+
+    r = sum(x) / sum(x^2),   x = allocated predicted / reserved measured, per run
+
+which minimizes the squared relative error of r * allocated against reserved, and sets C to the median over ranks of device memory in use minus memory reserved. The accuracy it reports is held out: r fitted on the 0.5B runs and tested on the 1.5B runs, then the reverse. The README quotes that held-out error. `calibration.json` uses all valid runs, and records the results file's hash, the dates, the GPU, the driver and the library versions.
+
+It refuses to fit until `scripts/saved_tensors.py --device cuda` has matched every case on the T4, on the same torch as the runs; `--ignore-cuda-check` overrides that and records why. Otherwise a formula error on CUDA would be absorbed into r. On CUDA the check uses sequence lengths that are multiples of 32, because the memory-efficient kernel pads its logsumexp to a multiple of 32 queries (`kAlignLSE` in `mem_eff_attention/kernel_forward.h`), which the formulas leave out; the sweep's lengths are multiples of 512.
+
 ## Not modeled yet
 
 These are known gaps. Each should show up as error in the Phase 3 calibration runs or get its own term. The last three are detected from `config.json`: the CLI names them and answers "unknown" instead of "yes", unless the part it counts already exceeds the GPU, since what is left out only adds memory.
@@ -134,7 +155,7 @@ These are known gaps. Each should show up as error in the Phase 3 calibration ru
 - Whether CUDA's SDPA output really needs no copy before `o_proj`, as assumed above. Phase 3 measures it.
 - Qwen3.5 with `flash-linear-attention` installed, and kernels from the `kernels` package.
 - Padding, which brings back masks and, on CUDA, K/V copies.
-- The CUDA context, and the gap between memory the allocator has reserved and memory actually allocated. These are the `CALIBRATE` constants in `estimate.py`, left at neutral values until measured.
+- The CUDA context, and the gap between memory the allocator has reserved and memory actually allocated. These are the `CALIBRATE` constants, fitted from measured runs as described under Calibration.
 - Mixture-of-experts layers (Gemma 4 26B-A4B, Qwen3.5 MoE, Mixtral, DeepSeek, Llama 4), detected from `num_experts`, `num_local_experts` or `n_routed_experts`, and architectures without a formula: FitCheck reports their model states only. Gemma 4 26B-A4B shares `gemma4_text` with the dense Gemma 4 models, so the expert count, not the model type, decides.
 - Multi-head latent attention (DeepSeek, detected from `kv_lora_rank`): the head size shown is wrong and LoRA misses the latent K/V projections.
 - Quantized checkpoints (any `quantization_config`). Packed formats such as GPTQ and AWQ undercount Ψ.
@@ -145,7 +166,8 @@ These are known gaps. Each should show up as error in the Phase 3 calibration ru
 - Ren et al., "ZeRO-Offload: Democratizing Billion-Scale Model Training", 2021. arXiv:2101.06840.
 - Hu et al., "LoRA: Low-Rank Adaptation of Large Language Models", 2021. arXiv:2106.09685.
 - Korthikanti et al., "Reducing Activation Recomputation in Large Transformer Models", 2022. arXiv:2205.05198. Its per-layer counting method, applied here to the HF modeling code.
-- DeepSpeed source, github.com/deepspeedai/DeepSpeed, read at v0.19.8.
+- DeepSpeed source, github.com/deepspeedai/DeepSpeed, read at v0.19.8 and v0.19.9.
 - transformers source, github.com/huggingface/transformers, read at 5.19: `models/llama`, `models/gemma4`, `models/qwen3_5`, `integrations/sdpa_attention.py`, `masking_utils.py`, `loss/loss_utils.py`.
 - PyTorch source, github.com/pytorch/pytorch: `tools/autograd/derivatives.yaml`, `aten/src/ATen/native/transformers/cuda/sdp_utils.cpp`.
+- PyTorch CUDA notes, "Memory management", docs.pytorch.org/docs/stable/notes/cuda.html, and `c10/cuda/CUDACachingAllocator.cpp`.
 - safetensors format, github.com/huggingface/safetensors.
