@@ -21,6 +21,8 @@ from transformers import (
     AutoModelForCausalLM,
     Gemma4TextConfig,
     LlamaConfig,
+    MistralConfig,
+    Qwen2Config,
     Qwen3_5TextConfig,
 )
 
@@ -44,6 +46,33 @@ CONFIGS = {
         num_key_value_heads=2,
         head_dim=16,
         vocab_size=500,
+        tie_word_embeddings=False,
+    ),
+    # Like Mistral-7B-v0.1: every layer slides, so past the window SDPA gets a
+    # mask and K/V are copied to every query head.
+    "mistral": MistralConfig(
+        hidden_size=64,
+        intermediate_size=176,
+        num_hidden_layers=3,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        head_dim=16,
+        vocab_size=500,
+        sliding_window=16,
+        tie_word_embeddings=False,
+    ),
+    # Qwen2 with use_sliding_window: only the layers from max_window_layers on
+    # slide. Also covers the q/k/v biases.
+    "qwen2-sliding": Qwen2Config(
+        hidden_size=64,
+        intermediate_size=176,
+        num_hidden_layers=3,
+        num_attention_heads=4,
+        num_key_value_heads=2,
+        vocab_size=500,
+        use_sliding_window=True,
+        sliding_window=16,
+        max_window_layers=1,
         tie_word_embeddings=False,
     ),
     # Like gemma-4-E2B: per-layer embeddings, shared K/V, double-wide MLP.
@@ -101,7 +130,14 @@ CONFIGS = {
 }
 # Sequence lengths past the sliding window and not a whole number of 64-token
 # DeltaNet chunks, to exercise masks and padding.
-SEQ = {"llama": 48, "gemma4-e2b": 40, "gemma4-31b": 40, "qwen3.5": 100}
+SEQ = {
+    "llama": 48,
+    "mistral": 48,
+    "qwen2-sliding": 48,
+    "gemma4-e2b": 40,
+    "gemma4-31b": 40,
+    "qwen3.5": 100,
+}
 BATCH = 2
 DTYPES = {"bf16": torch.bfloat16, "fp32": torch.float32}
 
@@ -210,7 +246,7 @@ def main():
                 bad = [k for k in keys if measured.get(k, 0) != predicted.get(k, 0)]
                 total = sum(measured.values())
                 kind = "lora" if lora else "full"
-                label = f"{name:11} {kind:4} {attn:5} {dtype:4} s={s:<4}"
+                label = f"{name:13} {kind:4} {attn:5} {dtype:4} s={s:<4}"
                 print(f"{label} {total:>10,} bytes  {'ok' if not bad else 'MISMATCH'}")
                 for k in keys if verbose or bad else []:
                     m, p = measured.get(k, 0), predicted.get(k, 0)

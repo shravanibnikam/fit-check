@@ -145,6 +145,36 @@ def test_gemma4_sliding_mask_starts_at_the_window():
     assert layer0(512) - layer0(511) - per_token == 512 * 512 * 2
 
 
+def test_mistral_sliding_mask_starts_at_the_window():
+    mistral = {**QWEN25_05B, "model_type": "mistral", "sliding_window": 1024}
+
+    def layer0(cfg, s):
+        return FAMILIES["llama"](cfg, Setup(seq_len=s), 2).layers[0]
+
+    # Below the window Mistral runs exactly like Llama.
+    assert layer0(mistral, 1023) == layer0(QWEN25_05B, 1023)
+    # From the window on: the s x s float mask, and K/V copied from 2 to 14 heads.
+    s, q, kv = 1024, 14 * 64, 2 * 64
+    extra = s * s * 2 + 2 * 2 * (q - kv) * s
+    assert layer0(mistral, s) - layer0(QWEN25_05B, s) == extra
+    # Without the key, MistralConfig's default window of 4096 applies.
+    no_key = {**mistral}
+    del no_key["sliding_window"]
+    assert layer0(no_key, 4096) > layer0(QWEN25_05B, 4096)
+
+
+def test_qwen2_slides_only_with_use_sliding_window():
+    def layers(**cfg):
+        return FAMILIES["llama"]({**QWEN25_05B, **cfg}, Setup(seq_len=4096), 2).layers
+
+    dense = layers()
+    assert layers(sliding_window=4096) == dense  # Qwen2.5 configs ship this
+    # Layers from max_window_layers on slide.
+    sliding = layers(use_sliding_window=True, sliding_window=4096, max_window_layers=20)
+    assert sliding[:20] == dense[:20]
+    assert all(a > b for a, b in zip(sliding[20:], dense[20:]))
+
+
 def test_gemma4_shared_kv_layers_have_no_kv_terms():
     parts = FAMILIES["gemma4"]({**GEMMA4_E2B, "use_double_wide_mlp": False}, Setup(), 2)
     # Layer 15 is the first that reuses K/V; both are sliding layers.

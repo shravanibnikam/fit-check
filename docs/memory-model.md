@@ -88,6 +88,8 @@ SDPA has no s² term, because the fused kernel recomputes attention scores in ba
 
 Llama, Mistral and Qwen2 add these up per layer: two norms, the projection inputs, SDPA and the MLP. For Qwen2.5-0.5B in bf16 that is 57,408 bytes per token per layer: 2.63 GiB for one 2048-token sequence over 24 layers.
 
+Mistral, and Qwen2 with `use_sliding_window`, have sliding-window layers. Once the sequence reaches the window, such a layer needs an explicit mask (`_ignore_causal_mask_sdpa` in `masking_utils.py`), which costs what it costs in Gemma 4 below: SDPA keeps a float copy of the s x s mask, and K/V are copied to every query head. Mistral slides every layer, over 4096 tokens unless `config.json` says otherwise (Mistral-7B-v0.1 sets 4096, v0.3 sets no window). Qwen2 slides the layers from `max_window_layers` on, or those `layer_types` marks. For Mistral-7B-v0.1 at 8192 tokens that is 4 GiB of masks and 3 GiB of K/V copies over 32 layers.
+
 ### The output head
 
 The logits are often the largest allocation. The model returns bf16 logits (p·V per token, V the vocabulary size), and `ForCausalLMLoss` upcasts them to fp32 and keeps the log-softmax output (F·V). At the start of backward, log-softmax's backward also holds the incoming gradient and its result, two more fp32 tensors of the same size. So the head peaks at (p + 3F)·V per token: 14 bytes per vocabulary entry in bf16. Gemma's final logit softcapping keeps one more p·V (the tanh output). For Qwen2.5-0.5B (V = 151,936) that is 4.07 GiB for 2048 tokens, more than all 24 layers together. Phase 6's fused linear plus cross-entropy kernel targets exactly this.
@@ -115,7 +117,7 @@ The training peak is the model states plus the larger of two moments:
 
 ### How the formulas are checked
 
-`scripts/saved_tensors.py` builds small random-weight models that keep each family's structure: grouped-query attention, sliding windows, shared K/V, per-layer embeddings, K = V on global layers, global head_dim over 256, and DeltaNet layers. It runs a training forward pass on CPU, records every tensor autograd saves, and compares bytes per layer with the formulas. All 24 cases match exactly: four configs, full fine-tuning and LoRA, and SDPA bf16, eager bf16 and SDPA fp32.
+`scripts/saved_tensors.py` builds small random-weight models that keep each family's structure: grouped-query attention, sliding windows, shared K/V, per-layer embeddings, K = V on global layers, global head_dim over 256, and DeltaNet layers. It runs a training forward pass on CPU, records every tensor autograd saves, and compares bytes per layer with the formulas. All 36 cases match exactly: six configs (Llama, Mistral, Qwen2 with sliding layers, two Gemma 4 and Qwen3.5), full fine-tuning and LoRA, and SDPA bf16, eager bf16 and SDPA fp32.
 
     uv run --group check python scripts/saved_tensors.py -v
 

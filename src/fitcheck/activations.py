@@ -122,6 +122,28 @@ def _llama_norm(t, w, grad_in, trainable, p):
     return t * (F32 * w + F32 + (p * w if trainable else 0))
 
 
+def _windows(cfg, n_layers):
+    """Each layer's sliding window, or None, as transformers configures them.
+
+    Mistral slides every layer, over 4096 tokens unless config.json says
+    otherwise (MistralConfig). Qwen2 slides only with use_sliding_window, and
+    then the layers its layer_types marks, by default those from
+    max_window_layers on (Qwen2Config.__post_init__).
+    """
+    kind = cfg.get("model_type")
+    if kind == "mistral":
+        return [cfg.get("sliding_window", 4096)] * n_layers
+    if kind == "qwen2" and cfg.get("use_sliding_window"):
+        window = cfg.get("sliding_window", 4096)
+        first = cfg.get("max_window_layers", 28)
+        types = cfg.get("layer_types") or [
+            "sliding_attention" if i >= first else "full_attention"
+            for i in range(n_layers)
+        ]
+        return [window if x == "sliding_attention" else None for x in types]
+    return [None] * n_layers
+
+
 def _llama(cfg, setup, p):
     b, s, t, full, r = _sizes(setup)
     h, n_layers = cfg["hidden_size"], cfg["num_hidden_layers"]
@@ -129,16 +151,19 @@ def _llama(cfg, setup, p):
     kv_heads = cfg.get("num_key_value_heads") or heads
     d = cfg.get("head_dim") or h // heads
     q, kv, inter = heads * d, kv_heads * d, cfg["intermediate_size"]
-    repeat = _copies_kv(heads, kv_heads, d, False)
     layers = []
-    for i in range(n_layers):
+    for i, window in enumerate(_windows(cfg, n_layers)):
+        # A sliding layer needs an explicit mask once the sequence reaches the
+        # window (_ignore_causal_mask_sdpa in masking_utils.py), as in Gemma 4.
+        mask = window is not None and s >= window
+        repeat = _copies_kv(heads, kv_heads, d, mask)
         # With LoRA the embeddings are frozen, so nothing before layer 0's
         # adapters needs a gradient.
         n = _llama_norm(t, h, full or i > 0, full, p)
         # Norm output, kept by q/k/v (or by LoRA's A); each adapter's A output,
         # kept by its B.
         n += t * p * h + (0 if full else 4 * t * p * r)
-        n += _attention(t, b, s, heads, q, kv, p, setup.attn, repeat, False)
+        n += _attention(t, b, s, heads, q, kv, p, setup.attn, repeat, mask)
         n += _llama_norm(t, h, True, full, p)
         # MLP input, kept by gate_proj and up_proj when they train.
         n += t * p * h if full else 0
