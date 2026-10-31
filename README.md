@@ -53,11 +53,16 @@ uv run ruff check && uv run ruff format --check
 uv run --group check python scripts/saved_tensors.py   # needs torch, transformers, peft
 ```
 
-Calibration runs on Kaggle: open `calibrate/calibration.ipynb` there with GPU T4 x2 and Internet on, run it, and download `results.jsonl` and the `saved_tensors_*.json` files into `calibrate/results/`. Then:
+Calibration runs on Kaggle's 2x T4, pushed with the Kaggle CLI (a separate tool: `uv tool install kaggle`). `calibrate/kaggle/kernel-metadata.json` asks for a private notebook with GPU T4 x2 and internet:
 
 ```
+kaggle kernels push -p calibrate/kaggle
+kaggle kernels status shravanibnikam/fitcheck-calibration
+kaggle kernels output shravanibnikam/fitcheck-calibration -p calibrate/results
 uv run fitcheck calibrate calibrate/results/results.jsonl
 ```
+
+A smoke run pushes a copy of the notebook with `SMOKE = True`: the environment checks, the DeepSpeed op build, both saved-tensor checks and 2 sweep runs.
 
 It prints predicted against measured memory for every run and writes `src/fitcheck/calibration.json`. It won't fit until the CUDA saved-tensor check in `calibrate/results/saved_tensors_cuda.json` matches.
 
