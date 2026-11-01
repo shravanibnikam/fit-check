@@ -64,7 +64,8 @@ QWEN = make(QWEN25_05B, "llama", 494_032_768)
 def test_worked_example_in_docs():
     # docs/memory-model.md: Qwen2.5-0.5B, bf16, one sequence of 2048, SDPA.
     e = estimate(QWEN, Setup())
-    assert e.activations == 2_822_242_304
+    # 24 layers also keep SDPA's 16-byte philox seed and offset on CUDA.
+    assert e.activations == 2_822_242_304 + 24 * 16
     assert e.logits == 4_371_013_636
 
 

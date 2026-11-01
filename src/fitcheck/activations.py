@@ -95,6 +95,11 @@ def _attention(t, b, s, heads, q, kv, p, attn, repeat, mask):
     # feeds o_proj makes no copy.
     k = q if repeat else kv
     saved = t * (2 * p * q + 2 * p * k + F32 * heads)
+    # CUDA's memory-efficient kernel (the T4's) also keeps its philox seed and
+    # offset, two int64 scalars on the GPU, even without dropout
+    # (_efficient_attention_forward in aten/src/ATen/native/transformers/cuda/
+    # attention.cu). Measured on a T4 by scripts/saved_tensors.py --device cuda.
+    saved += 2 * I64
     if mask:
         # SDPA converts the boolean mask to a float bias on every call.
         saved += b * s * s * p

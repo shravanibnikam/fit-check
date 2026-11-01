@@ -82,11 +82,11 @@ The setup is the one DeepSpeed training uses: every parameter cast to the traini
 | Gemma4RMSNorm over w | F·w (fp32 x) + 2F + F·w (normalized x) | last term only if the weight trains |
 | Qwen3_5RMSNorm over w | F·w + F + F·w | last term only if the weight trains |
 | Linear | its input | only if its weight trains, or LoRA's A reads it |
-| SDPA (flash or memory-efficient) | p·q + 2p·kv + p·q (output) + F·heads (logsumexp) | K/V at full q width if they are copied per head |
+| SDPA (flash or memory-efficient) | p·q + 2p·kv + p·q (output) + F·heads (logsumexp), plus 16 bytes per call | K/V at full q width if they are copied per head |
 | Eager attention | 4p·q + (F + p)·heads·s | the softmax and its copy grow with sequence length s |
 | SwiGLU or GeGLU MLP, width I | 4p·I | 3p·I when down_proj is frozen |
 
-SDPA has no s² term, because the fused kernel recomputes attention scores in backward. Eager attention keeps an fp32 softmax and a dtype copy of it, heads x s values per token per layer. On a T4 or P100, SDPA uses the memory-efficient kernel, because FlashAttention needs sm80 or newer (`check_flash_attention_hardware_support` in PyTorch's `sdp_utils.cpp`). Both kernels keep the same tensors.
+SDPA has no s² term, because the fused kernel recomputes attention scores in backward. The 16 bytes per call are the memory-efficient kernel's philox seed and offset, two int64 scalars it keeps on the GPU even without dropout (`_efficient_attention_forward` in `aten/src/ATen/native/transformers/cuda/attention.cu`); the CUDA saved-tensor check on a T4 found them. The kernel saves K/V at their own width under grouped-query attention, as the formula assumes. Eager attention keeps an fp32 softmax and a dtype copy of it, heads x s values per token per layer. On a T4 or P100, SDPA uses the memory-efficient kernel, because FlashAttention needs sm80 or newer (`check_flash_attention_hardware_support` in PyTorch's `sdp_utils.cpp`). Both kernels keep the same tensors.
 
 Llama, Mistral and Qwen2 add these up per layer: two norms, the projection inputs, SDPA and the MLP. For Qwen2.5-0.5B in bf16 that is 57,408 bytes per token per layer: 2.63 GiB for one 2048-token sequence over 24 layers.
 
@@ -123,7 +123,7 @@ The training peak is the model states plus the larger of two moments:
 
     uv run --group check python scripts/saved_tensors.py -v
 
-Two things differ between CPU and CUDA, and the script handles both. HF's native-GQA rule depends on the device, so the script pins the CUDA rule. And PyTorch's CPU attention kernel returns its output in the query's memory layout, which costs Qwen3.5 one extra copy that CUDA kernels don't make, so the script adds that copy to the prediction. These are exact counts of saved tensors, not GPU measurements. They don't cover the allocator, CUDA workspaces or other short-lived buffers.
+Three things differ between CPU and CUDA, and the script handles them on CPU. HF's native-GQA rule depends on the device, so the script pins the CUDA rule. PyTorch's CPU attention kernel returns its output in the query's memory layout, which costs Qwen3.5 one extra copy that CUDA kernels don't make, so the script adds that copy to the prediction. And the CPU kernel keeps no philox seed and offset, so the script subtracts those 16 bytes per call. With `--device cuda` none of these adjustments apply. These are exact counts of saved tensors, not GPU measurements. They don't cover the allocator, CUDA workspaces or other short-lived buffers.
 
 ## Calibration
 

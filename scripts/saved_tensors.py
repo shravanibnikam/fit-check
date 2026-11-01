@@ -232,6 +232,13 @@ def predict(name, config, attn, lora, s, dtype, device):
     buckets = {"shared": parts.shared, "embed": parts.embed, "head": parts.head}
     buckets.update({f"L{i}": n for i, n in enumerate(parts.layers)})
     buckets["held"] = parts.held
+    if attn == "sdpa" and device == "cpu":
+        # PyTorch's CPU flash kernel keeps no philox seed and offset, which the
+        # formula counts for CUDA's memory-efficient kernel: 16 bytes per call.
+        types = getattr(config, "layer_types", None)
+        for i, kind in enumerate(types or [FULL] * config.num_hidden_layers):
+            if kind != LINEAR:  # Qwen3.5's DeltaNet layers don't call SDPA
+                buckets[f"L{i}"] -= 2 * 8
     if name == "qwen3.5" and attn == "sdpa" and device == "cpu":
         # CPU-only: PyTorch's CPU flash kernel returns its output in the query's
         # layout, and Qwen3.5's partial-rotary cat leaves q contiguous, so the
@@ -264,33 +271,30 @@ def main():
         for lora in (None, 8):
             for attn, dtype in CASES[args.device]:
                 s = seq[name]
-                measured = measure(config, attn, lora, dtype, args.device, s)
+                kind = "lora" if lora else "full"
+                label = f"{name:13} {kind:4} {attn:5} {dtype:4} s={s:<4}"
+                case = {"config": name, "lora_rank": lora, "attn": attn}
+                case.update(dtype=dtype, seq_len=s, batch=BATCH)
+                try:
+                    measured = measure(config, attn, lora, dtype, args.device, s)
+                except Exception as e:  # noqa: BLE001  a crash is a failed case
+                    print(f"{label} ERROR {type(e).__name__}: {e}")
+                    cases.append(
+                        {**case, "ok": False, "error": f"{type(e).__name__}: {e}"}
+                    )
+                    continue
                 predicted = predict(name, config, attn, lora, s, dtype, args.device)
                 keys = sorted(set(measured) | set(predicted), key=_order)
                 bad = [k for k in keys if measured.get(k, 0) != predicted.get(k, 0)]
                 total = sum(measured.values())
-                kind = "lora" if lora else "full"
-                label = f"{name:13} {kind:4} {attn:5} {dtype:4} s={s:<4}"
                 print(f"{label} {total:>10,} bytes  {'ok' if not bad else 'MISMATCH'}")
                 for k in keys if args.v or bad else []:
                     m, p = measured.get(k, 0), predicted.get(k, 0)
                     print(
                         f"    {k:7} measured {m:>9,}  predicted {p:>9,}  diff {p - m:+,}"
                     )
-                cases.append(
-                    {
-                        "config": name,
-                        "lora_rank": lora,
-                        "attn": attn,
-                        "dtype": dtype,
-                        "seq_len": s,
-                        "batch": BATCH,
-                        "ok": not bad,
-                        "buckets": {
-                            k: [measured.get(k, 0), predicted.get(k, 0)] for k in keys
-                        },
-                    }
-                )
+                buckets = {k: [measured.get(k, 0), predicted.get(k, 0)] for k in keys}
+                cases.append({**case, "ok": not bad, "buckets": buckets})
     failures = sum(not c["ok"] for c in cases)
     if args.json:
         with open(args.json, "w") as f:
