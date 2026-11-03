@@ -3,6 +3,8 @@ name = "fitcheck"
 version = "0.1.0"
 description = "Predict whether a Hugging Face LLM fits on your GPUs, and where the memory goes."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 # Must stay empty: the package also runs in the browser via Pyodide.
 dependencies = []
