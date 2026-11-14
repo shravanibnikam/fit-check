@@ -213,6 +213,14 @@ def recommend_main(argv: list[str]) -> None:
         )
     if args.loss_tokens:
         print(f"  model(..., logits_to_keep={args.loss_tokens + 1})")
+    if CALIBRATION:
+        # Older torch runs SDPA's math path for grouped-query attention on GPUs
+        # without flash attention (docs/memory-model.md, "Second check").
+        prov = CALIBRATION["provenance"]
+        versions = ", ".join(
+            f"{lib} {'/'.join(prov[lib])}" for lib in ("torch", "deepspeed")
+        )
+        print(f"The estimate holds for the calibrated versions: {versions}.")
 
 
 def _add_common(parser: argparse.ArgumentParser) -> None:
