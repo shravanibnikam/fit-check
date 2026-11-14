@@ -146,6 +146,11 @@ def _is_loaded(name: str, cfg: dict) -> bool:
     # (_keys_to_ignore_on_load_unexpected in modeling_qwen3_5.py).
     if name.startswith("mtp."):
         return False
+    # Qwen3.5's vision tower. AutoModelForCausalLM builds Qwen3_5ForCausalLM,
+    # the text model alone, which skips these weights
+    # (_keys_to_ignore_on_load_unexpected in modeling_qwen3_5.py).
+    if name.startswith("model.visual."):
+        return False
     # Gemma 4 layers that reuse an earlier layer's K/V have no K/V weights, but
     # checkpoints such as gemma-4-E2B still ship them (Gemma4TextModel.__init__).
     shared = cfg.get("num_kv_shared_layers") or 0
