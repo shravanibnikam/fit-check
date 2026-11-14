@@ -12,7 +12,7 @@ It estimates the training peak per GPU:
 
 Activation formulas cover Llama 3 and other Llama-architecture models (also Mistral and Qwen2, including their sliding-window layers), Gemma 4 (E2B, E4B, 12B, 31B) and Qwen3.5 (0.8B to 27B, and Qwen3.8-27B). Other architectures, including mixture-of-experts models, get model states only.
 
-When a model uses something FitCheck doesn't model yet (mixture-of-experts layers, MLA attention, a quantized checkpoint, or an architecture without an activation formula), the output says so, and the verdict is "unknown" unless the part it counts already exceeds the GPU. With LoRA, it also lists the layers that lack any of q_proj, k_proj, v_proj or o_proj. The formulas count the tensors PyTorch keeps for backward, and `scripts/saved_tensors.py` checks them against autograd byte for byte. They are not yet calibrated against GPU runs, so allocator overhead and short-lived buffers are missing. The calibration harness is ready (a DeepSpeed training run, a 55-run sweep for Kaggle's 2x T4 in `calibrate/`, and `fitcheck calibrate`), but no constants have been fitted yet. DeepSpeed config generation and vLLM serving estimates are planned.
+When a model uses something FitCheck doesn't model yet (mixture-of-experts layers, MLA attention, a quantized checkpoint, or an architecture without an activation formula), the output says so, and the verdict is "unknown" unless the part it counts already exceeds the GPU. With LoRA, it also lists the layers that lack any of q_proj, k_proj, v_proj or o_proj. The formulas count the tensors PyTorch keeps for backward, and `scripts/saved_tensors.py` checks them against autograd byte for byte. The estimate is of the peak memory PyTorch allocates, plus the CUDA context. The target is within 2% of measured `max_memory_allocated`; reserved memory is reported but not used, because DeepSpeed leaves freed blocks in PyTorch's cache and PyTorch frees them before it raises an OOM. The calibration harness is ready (a DeepSpeed training run, a 55-run sweep for Kaggle's 2x T4 in `calibrate/`, and `fitcheck calibrate`), but no constants have been fitted yet. DeepSpeed config generation and vLLM serving estimates are planned.
 
 ## Usage
 
@@ -64,6 +64,6 @@ uv run fitcheck calibrate calibrate/results/results.jsonl
 
 A smoke run pushes a copy of the notebook with `SMOKE = True`: the environment checks, the DeepSpeed op build, both saved-tensor checks and 2 sweep runs.
 
-It prints predicted against measured memory for every run and writes `src/fitcheck/calibration.json`. It won't fit until the CUDA saved-tensor check in `calibrate/results/saved_tensors_cuda.json` matches.
+It prints predicted against measured allocated memory for every run, with reserved memory for information, and writes `src/fitcheck/calibration.json`. It won't fit until the CUDA saved-tensor check in `calibrate/results/saved_tensors_cuda.json` matches.
 
 The `check` group installs torch, transformers and peft for the saved-tensor check only. CI doesn't install it.

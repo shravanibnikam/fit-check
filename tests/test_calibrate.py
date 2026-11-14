@@ -34,22 +34,22 @@ def models(tmp_path, make_safetensors):
 
 def bare_prediction(model, setup):
     config, tensors = hub.load(model)
-    return estimate(from_config(model, config, tensors), setup).gpu_total
+    return estimate(from_config(model, config, tensors), setup).allocated
 
 
 def run(
     model, factor, *, seq_len=1024, applied=8, status="ok", torch="2.14.1", **setup
 ):
-    """A results.jsonl line whose ranks reserved factor x the bare prediction."""
+    """A results.jsonl line whose ranks allocated factor x the prediction."""
     setup = Setup(num_gpus=2, zero_stage=2, dtype="fp16", seq_len=seq_len, **setup)
     predicted = bare_prediction(model, setup)
     rank = {
         "status": status,
         "total_memory": 15 * GIB,
-        "max_allocated": predicted,
-        "max_reserved": round(factor * predicted),
-        "reserved_end": round(factor * predicted),
-        "device_used_end": round(factor * predicted) + 400 * 2**20,
+        "max_allocated": round(factor * predicted),
+        "max_reserved": round(1.5 * factor * predicted),
+        "reserved_end": round(1.5 * factor * predicted),
+        "device_used_end": round(1.5 * factor * predicted) + 400 * 2**20,
         "peak_host_rss": 3 * GIB,
     }
     return {
@@ -88,20 +88,25 @@ def fit(tmp_path, results, *extra):
     return json.loads(out.read_text())
 
 
-def test_fits_constants_with_held_out_error(tmp_path, models):
+def test_reports_allocated_error_and_fits_context(tmp_path, models):
     small, large = models
-    runs = [run(small, 1.2, seq_len=s) for s in (512, 1024)]
-    runs += [run(large, 1.3, seq_len=s) for s in (512, 1024)]
-    # Too few applied steps: dropped from the fit, however wrong it looks.
+    # Measured allocated is 1.01x and 1.03x the prediction, so the predictions
+    # are 1 / 1.01 - 1 = 1.0% and 1 / 1.03 - 1 = 2.9% under.
+    runs = [run(small, 1.01, seq_len=s) for s in (512, 1024)]
+    runs += [run(large, 1.03, seq_len=s) for s in (512, 1024)]
+    # Too few applied steps: dropped, however wrong it looks.
     runs.append(run(large, 5.0, seq_len=2048, applied=3))
     cal = fit(tmp_path, write(tmp_path, runs, check=True))
 
-    assert 1.2 < cal["reserved_over_allocated"] < 1.3
+    assert "reserved_over_allocated" not in cal and "held_out" not in cal
     assert cal["cuda_context_bytes"] == 400 * 2**20
-    # Fitted on the other model only: 1.3 / 1.2 - 1 and 1.2 / 1.3 - 1.
-    assert cal["held_out"][small]["median_abs_error"] == pytest.approx(0.0833, abs=1e-4)
-    assert cal["held_out"][large]["max_abs_error"] == pytest.approx(0.0769, abs=1e-4)
-    assert cal["held_out"][small]["within_10_percent"] == 2
+    err = cal["allocated_error"]
+    assert err["runs"] == 4 and err["within_target"] == 2
+    assert err["max_abs_error"] == pytest.approx(0.0291, abs=1e-4)
+    assert err["per_model"][small]["median_abs_error"] == pytest.approx(
+        0.0099, abs=1e-4
+    )
+    assert err["per_model"][large]["within_target"] == 0
     prov = cal["provenance"]
     assert (prov["runs"], prov["valid_runs"]) == (5, 4)
     assert prov["torch"] == ["2.14.1"] and prov["gpu"] == ["Tesla T4"]

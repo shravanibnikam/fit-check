@@ -160,11 +160,10 @@ def main(argv: list[str] | None = None) -> None:
         print(f"Fits in {args.gpu_mem:g} GiB: {verdict}")
     if CALIBRATION:
         prov = CALIBRATION["provenance"]
-        errors = [h["max_abs_error"] for h in CALIBRATION["held_out"].values()]
+        err = CALIBRATION["allocated_error"]
         held = (
-            f"; held-out error up to {max(errors):.0%} of reserved memory"
-            if errors
-            else ""
+            f"; allocated memory within {err['max_abs_error']:.0%} on "
+            f"{err['runs']} measured runs, the allocator may reserve more"
         )
         print(
             f"Calibrated on {', '.join(prov['models'])} runs on {', '.join(prov['gpu'])}"

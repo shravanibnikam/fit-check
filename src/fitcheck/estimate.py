@@ -37,9 +37,9 @@ def _calibration() -> dict | None:
 # Fitted by `fitcheck calibrate` into calibration.json, with provenance. Until
 # then the neutral values leave the estimate as bare theory.
 CALIBRATION = _calibration()
-# CALIBRATE: allocator cache and fragmentation, reserved / allocated.
-RESERVED_OVER_ALLOCATED = CALIBRATION["reserved_over_allocated"] if CALIBRATION else 1.0
 # CALIBRATE: device memory outside PyTorch's allocator: CUDA context, NCCL.
+# The estimate is of allocated memory, not reserved: freed blocks in the cache
+# are not a limit, because PyTorch frees them and retries before it raises OOM.
 CUDA_CONTEXT_BYTES = CALIBRATION["cuda_context_bytes"] if CALIBRATION else 0
 
 
@@ -215,7 +215,7 @@ def estimate(model: Model, setup: Setup) -> Estimate:
     backward += (layers or 0) + (logits or 0)
     at_step = weights + optimizer + grads + step + buffers
     allocated = max(backward, at_step)
-    overhead = round((RESERVED_OVER_ALLOCATED - 1) * allocated) + CUDA_CONTEXT_BYTES
+    overhead = CUDA_CONTEXT_BYTES
     return Estimate(
         weights=weights,
         grads=grads,

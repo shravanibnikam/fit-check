@@ -136,24 +136,22 @@ Three things differ between CPU and CUDA, and the script handles them on CPU. HF
 
 ## Calibration
 
-The formulas above count what PyTorch allocates. The GPU has to provide more: PyTorch's caching allocator rounds requests up and keeps freed blocks for reuse (`c10/cuda/CUDACachingAllocator.cpp`; "Memory management" in PyTorch's CUDA notes), and the CUDA context, cuBLAS and NCCL take device memory outside the allocator. FitCheck covers both with the two `CALIBRATE` constants in `estimate.py`:
+The formulas above count what PyTorch allocates, so the estimate is of peak allocated memory. The GPU also holds the CUDA context, cuBLAS and NCCL buffers outside the allocator. FitCheck covers that with one `CALIBRATE` constant in `estimate.py`:
 
-    GPU total = r * allocated + C
+    GPU total = allocated + C
 
-r is `RESERVED_OVER_ALLOCATED` and C is `CUDA_CONTEXT_BYTES`. Both come only from measured runs, through `calibration.json`, and stay at 1 and 0 until then.
+C is `CUDA_CONTEXT_BYTES`. It comes only from measured runs, through `calibration.json`, and stays at 0 until then. The fits verdict compares this total with the GPU's memory.
+
+Reserved memory, which is what PyTorch's caching allocator has taken from the device, is reported but not used. DeepSpeed's initialize and the later phases leave freed blocks in the cache, 1 to 5 GiB of them: after initialize at ZeRO-0 for Qwen2.5-0.5B, 11.15 GiB are reserved against 6.44 GiB allocated. Cached free blocks are not a hard limit, because PyTorch frees its unused cache and retries before it raises an OOM ("Memory management" in PyTorch's CUDA notes; `c10/cuda/CUDACachingAllocator.cpp`). The reserved to allocated ratio therefore varies from run to run, and no single factor would predict it.
 
 `calibrate/run_one.py` trains for 8 steps under DeepSpeed in fp16 and records, on every rank, `max_memory_allocated` and `max_memory_reserved` for the forward and backward pass and for the optimizer step separately, plus device memory in use (`cudaMemGetInfo`) and memory reserved at the end. Two details keep the measurement comparable to the formulas:
 
 - The model's outputs stay alive through backward and are freed before the optimizer step, as the formulas assume.
 - The dynamic loss scale starts at 1 instead of DeepSpeed's 2^16 (`initial_scale_power` 0). A step skipped on fp16 overflow returns before the fp32 gradient copy (`FP16_Optimizer.step` in `deepspeed/runtime/fp16/fused_optimizer.py`), so its peak would be too low. Runs with fewer than 4 applied steps don't count.
 
-`calibrate/sweep.py` runs 55 configurations on 2x T4: Qwen2.5-0.5B and 1.5B, each ZeRO stage and offload combination, sequence lengths 512 to 4096 with and without checkpointing, LoRA, eager attention, micro-batch 2, and one GPU. `fitcheck calibrate results.jsonl` then fits
+`calibrate/sweep.py` runs 55 configurations on 2x T4: Qwen2.5-0.5B and 1.5B, each ZeRO stage and offload combination, sequence lengths 512 to 4096 with and without checkpointing, LoRA, eager attention, micro-batch 2, and one GPU. `fitcheck calibrate results.jsonl` then compares, for every valid run, predicted allocated with the largest `max_memory_allocated` over the ranks. The target is within 2%. It prints the median and maximum absolute error per model and overall, next to each run's measured reserved memory and reserved to allocated ratio. It sets C to the median over ranks of device memory in use minus memory reserved at the end of the run. For the offload runs it also prints FitCheck's host RAM estimate against each rank's peak resident memory (`ru_maxrss`), summed over ranks. Nothing is fitted to that yet: the measured number also holds the model as loaded on the CPU and the Python, PyTorch and CUDA runtimes. The 1.5B offload runs need the most host RAM, so the sweep runs them last. `calibration.json` records C, the allocated error, the results file's hash, the dates, the GPU, the driver and the library versions.
 
-    r = sum(x) / sum(x^2),   x = allocated predicted / reserved measured, per run
-
-which minimizes the squared relative error of r * allocated against reserved, and sets C to the median over ranks of device memory in use minus memory reserved. For the offload runs it also prints FitCheck's host RAM estimate against each rank's peak resident memory (`ru_maxrss`), summed over ranks. Nothing is fitted to that yet: the measured number also holds the model as loaded on the CPU and the Python, PyTorch and CUDA runtimes. The 1.5B offload runs need the most host RAM, so the sweep runs them last. The accuracy it reports is held out: r fitted on the 0.5B runs and tested on the 1.5B runs, then the reverse. The README quotes that held-out error. `calibration.json` uses all valid runs, and records the results file's hash, the dates, the GPU, the driver and the library versions.
-
-It refuses to fit until `scripts/saved_tensors.py --device cuda` has matched every case on the T4, on the same torch as the runs; `--ignore-cuda-check` overrides that and records why. Otherwise a formula error on CUDA would be absorbed into r. On CUDA the check uses sequence lengths that are multiples of 32, because the memory-efficient kernel pads its logsumexp to a multiple of 32 queries (`kAlignLSE` in `mem_eff_attention/kernel_forward.h`), which the formulas leave out; the sweep's lengths are multiples of 512.
+It refuses to fit until `scripts/saved_tensors.py --device cuda` has matched every case on the T4, on the same torch as the runs; `--ignore-cuda-check` overrides that and records why. Otherwise a formula error on CUDA would go unnoticed next to C. On CUDA the check uses sequence lengths that are multiples of 32, because the memory-efficient kernel pads its logsumexp to a multiple of 32 queries (`kAlignLSE` in `mem_eff_attention/kernel_forward.h`), which the formulas leave out; the sweep's lengths are multiples of 512.
 
 ## Not modeled yet
 
@@ -164,7 +162,7 @@ These are known gaps. Each should show up as error in the Phase 3 calibration ru
 - Whether CUDA's SDPA output really needs no copy before `o_proj`, as assumed above. Phase 3 measures it.
 - Qwen3.5 with `flash-linear-attention` installed, and kernels from the `kernels` package.
 - Padding, which brings back masks and, on CUDA, K/V copies.
-- The CUDA context, and the gap between memory the allocator has reserved and memory actually allocated. These are the `CALIBRATE` constants, fitted from measured runs as described under Calibration.
+- The CUDA context, a `CALIBRATE` constant fitted from measured runs as described under Calibration. Memory the allocator has reserved but not allocated is not counted.
 - Mixture-of-experts layers (Gemma 4 26B-A4B, Qwen3.5 MoE, Mixtral, DeepSeek, Llama 4), detected from `num_experts`, `num_local_experts` or `n_routed_experts`, and architectures without a formula: FitCheck reports their model states only. Gemma 4 26B-A4B shares `gemma4_text` with the dense Gemma 4 models, so the expert count, not the model type, decides.
 - Multi-head latent attention (DeepSeek, detected from `kv_lora_rank`): the head size shown is wrong and LoRA misses the latent K/V projections.
 - Quantized checkpoints (any `quantization_config`). Packed formats such as GPTQ and AWQ undercount Ψ.
