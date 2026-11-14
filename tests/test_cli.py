@@ -81,10 +81,16 @@ def test_counts_activations_for_known_families(tmp_path, make_safetensors, capsy
     (tmp_path / "model.safetensors").write_bytes(make_safetensors({"w": [8, 8]}))
     main([str(tmp_path), "--seq-len", "4096", "--micro-batch", "2", "--checkpointing"])
     out = capsys.readouterr().out
-    assert "micro-batch 2 x 4096 tokens, sdpa attention, checkpointing" in out
+    assert "checkpointing, gradient accumulation 1" in out
     assert row(out, "activations") != "n/a"
 
 
 def test_invalid_setup_exits_with_message(folder):
     with pytest.raises(SystemExit, match="parameter offload needs ZeRO stage 3"):
         main([folder, "--zero", "2", "--offload-param"])
+
+
+def test_grad_accum_flag_shows_in_header(folder, capsys):
+    main([folder, "--grad-accum", "4"])
+    out = capsys.readouterr().out
+    assert "gradient accumulation 4" in out

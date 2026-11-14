@@ -55,6 +55,7 @@ class Setup:
     seq_len: int = 2048
     attn: str = "sdpa"  # attn_implementation, "sdpa" or "eager"
     checkpointing: bool = False  # model.gradient_checkpointing_enable()
+    grad_accum: int = 1  # gradient_accumulation_steps: micro-batches per step
 
     def __post_init__(self):
         if self.dtype not in DTYPE_BYTES:
@@ -67,6 +68,8 @@ class Setup:
             raise ValueError("lora_rank must be at least 1")
         if self.micro_batch < 1 or self.seq_len < 1:
             raise ValueError("micro_batch and seq_len must be at least 1")
+        if self.grad_accum < 1:
+            raise ValueError("grad_accum must be at least 1")
         if self.attn not in ("sdpa", "eager"):
             raise ValueError('attn must be "sdpa" or "eager"')
         # Both rules come from DeepSpeedZeroConfig in deepspeed/runtime/zero/config.py.
@@ -203,7 +206,35 @@ def estimate(model: Model, setup: Setup) -> Estimate:
     # ZeRO-3 preallocates the gradient partition at init and keeps it for the
     # whole run (grad_partitions_flat_buffer in stage3.py), on the CPU with
     # optimizer offload. ZeRO-0, 1 and 2 only create gradients during backward.
+    #
+    # With gradient accumulation, the gradients of the earlier micro-batches are
+    # still alive when the last backward starts. DeepSpeed's default
+    # gradient_accumulation_dtype is the model dtype, so they stay in the
+    # training dtype in param.grad (use_grad_accum_attribute is off, see
+    # DeepSpeedZeroOptimizer.__init__). From the v0.19.9 source, not measured:
+    # - ZeRO-0 (FP16_Optimizer) and ZeRO-1 reduce only at the boundary
+    #   (process_gradients reduces during backward only with partition_gradients
+    #   or overlap_comm; engine.allreduce_gradients calls reduce_gradients only
+    #   at the boundary), so p.grad accumulates in place: full gradients, with
+    #   or without optimizer offload.
+    # - ZeRO-2 reduces after every micro-batch and its epilogue
+    #   (independent_gradient_partition_epilogue) keeps only the partition's
+    #   gradients in all_grad_tensors: the partition, b bytes per parameter / n.
+    #   The next backward makes a second partition-sized buffer
+    #   (grads_in_partition) that is added in and freed at its end, which the
+    #   step's temporary copies below already cover.
+    # - ZeRO-2 with optimizer offload adds each micro-batch's partition into a
+    #   CPU buffer (async_accumulate_grad_in_cpu_via_gpu), so nothing stays on
+    #   the GPU.
     held_in_backward = grads if stage == 3 else 0
+    if setup.grad_accum > 1 and stage < 3:
+        if stage < 2:
+            held_in_backward = b * trainable
+        elif not setup.offload_optimizer:
+            held_in_backward = grads
+        if setup.offload_optimizer:
+            # accumulated_grads_in_cpu: a param-sized buffer per owned parameter.
+            cpu += b * trainable
     gathered = b * _gathered_at_backward(model, total) if stage == 3 else 0
 
     act = activations(model, setup, b)

@@ -50,6 +50,7 @@ def main():
     p.add_argument("--micro-batch", type=int, default=1)
     p.add_argument("--attn", default="sdpa", choices=["sdpa", "eager"])
     p.add_argument("--checkpointing", action="store_true")
+    p.add_argument("--grad-accum", type=int, default=1)
     p.add_argument("--steps", type=int, default=8)
     p.add_argument("--out-dir", required=True)
     p.add_argument(
@@ -74,6 +75,7 @@ def main():
         seq_len=args.seq_len,
         attn=args.attn,
         checkpointing=args.checkpointing,
+        grad_accum=args.grad_accum,
     )
     free, total = torch.cuda.mem_get_info()
     record = {
@@ -170,8 +172,17 @@ def train(args, record):
     torch.cuda.reset_peak_memory_stats()
     for i in range(args.steps):
         record["phase"] = f"step {i} forward and backward"
-        out = engine(input_ids=ids, labels=ids)
-        engine.backward(out.loss)
+        # With --grad-accum N, N micro-batches per step. engine.step() after each
+        # one only counts the micro-step until the last, where it updates the
+        # weights (is_gradient_accumulation_boundary in engine.py), so the last
+        # call is kept apart below. The peak covers all N micro-batches, the last
+        # one being where earlier gradients and the activations coexist.
+        for micro in range(args.grad_accum):
+            out = engine(input_ids=ids, labels=ids)
+            engine.backward(out.loss)
+            if micro < args.grad_accum - 1:
+                del out
+                engine.step()
         torch.cuda.synchronize()
         record["peak_fwd_bwd"].append(torch.cuda.max_memory_allocated())
         max_reserved = max(max_reserved, torch.cuda.max_memory_reserved())
@@ -210,7 +221,7 @@ def ds_config(args):
         zero["offload_param"] = {"device": "cpu"}
     return {
         "train_micro_batch_size_per_gpu": args.micro_batch,
-        "gradient_accumulation_steps": 1,
+        "gradient_accumulation_steps": args.grad_accum,
         # Start the dynamic loss scale at 1 (2**0) instead of 2**16, so the
         # first steps don't overflow. A skipped step returns before the fp32
         # gradient copy (FP16_Optimizer.step in runtime/fp16/fused_optimizer.py),

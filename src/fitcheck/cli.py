@@ -41,6 +41,9 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--micro-batch", type=int, default=1, help="sequences per GPU per step"
     )
+    parser.add_argument(
+        "--grad-accum", type=int, default=1, help="micro-batches per optimizer step"
+    )
     parser.add_argument("--attn", default="sdpa", choices=["sdpa", "eager"])
     parser.add_argument(
         "--checkpointing", action="store_true", help="activation checkpointing"
@@ -59,6 +62,7 @@ def main(argv: list[str] | None = None) -> None:
             seq_len=args.seq_len,
             attn=args.attn,
             checkpointing=args.checkpointing,
+            grad_accum=args.grad_accum,
         )
         config, tensors = hub.load(args.model, revision=args.revision)
         model = from_config(args.model, config, tensors)
@@ -88,7 +92,7 @@ def main(argv: list[str] | None = None) -> None:
     ckpt = "checkpointing" if args.checkpointing else "no checkpointing"
     print(
         f"micro-batch {args.micro_batch} x {args.seq_len} tokens, "
-        f"{args.attn} attention, {ckpt}"
+        f"{args.attn} attention, {ckpt}, gradient accumulation {args.grad_accum}"
     )
     print()
     # The breakdown of whichever moment is the peak, so the rows add up.

@@ -144,8 +144,48 @@ def test_zero3_keeps_parameters_gathered_within_the_reuse_distance():
         ({"zero_stage": 4}, "zero_stage"),
         ({"num_gpus": 0}, "num_gpus"),
         ({"lora_rank": 0}, "lora_rank"),
+        ({"grad_accum": 0}, "grad_accum"),
     ],
 )
 def test_rejects_invalid_setups(setup, message):
     with pytest.raises(ValueError, match=message):
         Setup(**setup)
+
+
+def held(zero_stage, grad_accum, offload_optimizer=False, num_gpus=2):
+    setup = Setup(
+        num_gpus=num_gpus,
+        zero_stage=zero_stage,
+        offload_optimizer=offload_optimizer,
+        grad_accum=grad_accum,
+    )
+    e = estimate(QWEN_05B, setup)
+    # What backward holds beyond the other terms: the gradients.
+    held = e.backward - e.weights - e.optimizer - e.buffers - e.gathered
+    return held - (e.activations or 0) - (e.logits or 0), e
+
+
+def test_grad_accum_one_holds_no_gradients_at_backward_start():
+    assert [held(z, 1)[0] for z in (0, 1, 2)] == [0, 0, 0]
+
+
+def test_grad_accum_holds_earlier_gradients_by_stage():
+    p = QWEN_05B.num_params
+    assert held(0, 4)[0] == 2 * p  # full, in fp16/bf16
+    assert held(1, 4)[0] == 2 * p  # ZeRO-1 reduces only at the boundary
+    assert held(2, 4)[0] == 2 * p // 2  # ZeRO-2 keeps its partition
+    assert held(2, 4)[0] == held(2, 4)[1].grads
+
+
+def test_grad_accum_with_optimizer_offload():
+    p = QWEN_05B.num_params
+    h1, e1 = held(1, 4, offload_optimizer=True)
+    assert h1 == 2 * p  # ZeRO-1 offload still holds full gradients on the GPU
+    assert e1.cpu == 16 * p + 2 * p
+    h2, e2 = held(2, 4, offload_optimizer=True)
+    assert h2 == 0  # ZeRO-2 offload accumulates on the CPU
+    assert e2.cpu == 16 * p + 2 * p
+
+
+def test_grad_accum_does_not_change_zero3():
+    assert held(3, 4)[0] == held(3, 1)[0]

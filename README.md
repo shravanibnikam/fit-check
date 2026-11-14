@@ -22,7 +22,7 @@ From a clone, with [uv](https://docs.astral.sh/uv/):
 $ uv run fitcheck Qwen/Qwen2.5-0.5B --gpus 2 --gpu-mem 15 --zero 2 --dtype fp16
 Qwen/Qwen2.5-0.5B: 494.0M params, 24 layers, hidden 896, 14 heads (2 KV) of 64
 full fine-tune (494.0M trainable), fp16, ZeRO-2 on 2 GPU(s)
-micro-batch 1 x 2048 tokens, sdpa attention, no checkpointing
+micro-batch 1 x 2048 tokens, sdpa attention, no checkpointing, gradient accumulation 1
 
 Per GPU               GiB
   weights            0.92
@@ -37,7 +37,7 @@ Fits in 15 GiB: yes
 Not yet calibrated against measured runs.
 ```
 
-Options: `--gpus`, `--gpu-mem` (GiB per GPU), `--zero {0,1,2,3}`, `--offload-optimizer`, `--offload-param`, `--lora-rank R`, `--dtype {bf16,fp16,fp32}`, `--seq-len` (default 2048), `--micro-batch` (default 1), `--attn {sdpa,eager}`, `--checkpointing`, `--revision`. The model can be a Hub id or a local folder. For gated models such as Llama, accept the license on the Hub and set `HF_TOKEN`.
+Options: `--gpus`, `--gpu-mem` (GiB per GPU), `--zero {0,1,2,3}`, `--offload-optimizer`, `--offload-param`, `--lora-rank R`, `--dtype {bf16,fp16,fp32}`, `--seq-len` (default 2048), `--micro-batch` (default 1), `--grad-accum` (default 1), `--attn {sdpa,eager}`, `--checkpointing`, `--revision`. The model can be a Hub id or a local folder. For gated models such as Llama, accept the license on the Hub and set `HF_TOKEN`.
 
 The formulas, their sources and the known gaps are in [docs/memory-model.md](docs/memory-model.md).
 
