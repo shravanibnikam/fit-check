@@ -5,3 +5,6 @@ __pycache__/
 .ruff_cache/
 dist/
 .DS_Store
+
+# Allocator snapshots: large, kept in the GitHub release instead
+calibrate/results/*-traces/
