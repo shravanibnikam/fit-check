@@ -113,6 +113,10 @@ def train(args, record):
         dtype=torch.float16,
         attn_implementation=args.attn,
     )
+    # from_pretrained returns the model in eval mode (modeling_utils.py), and
+    # GradientCheckpointingLayer.__call__ only checkpoints when self.training
+    # (transformers/modeling_layers.py). DeepSpeed's engine doesn't call train().
+    model.train()
     vocab = model.config.vocab_size
     if args.checkpointing:
         # Defaults to use_reentrant=False (gradient_checkpointing_enable in
