@@ -164,6 +164,41 @@ Allocator traces of three runs (`run_one.py --trace`, snapshots in the `calibrat
 
 The gap depends on allocation order and on near-misses like 0.93 against 0.92 GiB, so there is no clean formula in terms of model size. That is why the fits verdict uses allocated memory. PyTorch releases unused cached segments and retries before it raises an out-of-memory error, so these holes don't cause an OOM by themselves. Setting `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` should shrink them, but that hasn't been measured.
 
+### Second check: Ratchet's runs
+
+The DeepSpeed sweep above only covers Qwen2.5. Ratchet's `train/memprobe.py` measured peak allocated memory outside DeepSpeed, on one T4: plain PyTorch, PEFT LoRA r=16, `torch.optim.AdamW`, fp16, SDPA, checkpointing with `use_reentrant=False`, random ids, torch 2.11.0 and transformers 5.22.2, on Qwen3.5-0.8B and 2B. The results are in `calibrate/results/ratchet-memprobe-2026-11-12.json`, and `scripts/compare_memprobe.py` prints the comparison. The "answer only" rows take logits for the last 65 positions and compute the loss on 64 tokens, which needs `Setup.loss_tokens`; until that exists the script prints "needs --loss-tokens" instead of a number.
+
+    #  model          seq   ckpt  fla    pred   meas     err  note
+    0  Qwen3.5-0.8B   512   True  True      -   1.83       -  needs --loss-tokens
+    1  Qwen3.5-0.8B   4096  True  True      -   3.92       -  needs --loss-tokens
+    2  Qwen3.5-0.8B   4096  True  False     -   3.92       -  needs --loss-tokens
+    3  Qwen3.5-0.8B   4096  True  True      -      -       -  not compared: oom
+    4  Qwen3.5-2B     4096  True  True      -   6.26       -  needs --loss-tokens
+    5  Qwen3.5-2B     4096  False True      -      -       -  not compared: oom
+    6  Qwen3.5-2B     4096  True  True      -   6.44       -  not compared: LoRA on all-linear
+    7  Qwen3.5-2B     6144  True  True      -   9.10       -  needs --loss-tokens
+
+The model states match: FitCheck gives 1.42 GiB against 1.43 measured after loading for 0.8B, and 3.53 against 3.51 for 2B. What is above the states does not match. Taking FitCheck's own terms (the layer inputs kept by checkpointing, the largest layer recomputed in backward, and the head for 65 positions at about 0.21 GiB by the formula in "The output head"), and subtracting the measured post-load memory from the measured peak:
+
+| Row | FitCheck above states | Measured above states | Gap |
+|---|---|---|---|
+| 0.8B, seq 512 | 0.33 | 0.40 | 0.07 |
+| 0.8B, seq 4096 | 1.20 | 2.49 | 1.29 |
+| 2B, seq 4096 | 1.48 | 2.75 | 1.27 |
+| 2B, seq 6144 | 2.11 | 5.59 | 3.47 |
+
+All numbers are GiB. The gap is small at 512 and grows faster than linearly: from 4096 to 6144 on 2B it goes up 2.7 times, where the sequence grows 1.5 times. The two 0.8B rows at 4096 peak at the same allocated bytes with and without `flash-linear-attention`, so the package did not change the peak in that run (whether transformers used its kernels there was not checked).
+
+Hypothesis, not confirmed: on the T4 the full-attention layers run SDPA's math path, which builds s x s attention weights in fp32. The reading of PyTorch v2.11.0 behind it:
+
+- Flash attention is rejected on sm75: `check_flash_attention_hardware_support` accepts sm80 and newer (`sdp_utils.cpp`, line 298).
+- The memory-efficient kernel has no head_dim limit on CUDA, only an alignment check, which 256 passes (`check_head_dim_size_mem_efficient`, line 247). So head_dim 256 is not the reason.
+- The memory-efficient kernel does not accept grouped-query attention: its dense check is called with `supports_grouped_query_attention=false` (line 901), so with `enable_gqa=True` it requires equal head counts (`sdp_utils_cpp.h`, lines 411-428) and Qwen3.5's 8 query and 2 KV heads fail it.
+- transformers 5.22.2 sets `enable_gqa=True` whenever there is no mask and head_dim is at most 256 (`use_gqa_in_sdpa`, `sdpa_attention.py`, lines 30-37, 114-118). Its comment says this is meant to avoid the math kernel, which holds on GPUs where flash attention runs but not on a T4.
+- The math path upcasts q, k and v to fp32 unless reduced-precision reduction is allowed (`_scaled_dot_product_attention_math`, `attention.cpp`, line 850 on), then computes `matmul`, a causal mask add and `_safe_softmax` (an fp32 softmax plus a boolean copy). Autograd keeps the softmax output, and backward adds at least one more tensor of that size.
+
+If that is what runs, one s x s fp32 tensor is 8 heads x s² x 4 bytes: 0.50 GiB at 4096 and 1.13 GiB at 6144. About three of them alive during one layer's recompute and backward would be 1.5 GiB and 3.4 GiB, against measured gaps of 1.27-1.29 and 3.47. That fits in size and in growth, but "about three" is my reading of the source and no run has looked at the allocator. The check is to call SDPA on the T4 with `enable_gqa=True` inside `sdpa_kernel(SDPBackend.EFFICIENT_ATTENTION)`, which should raise if the kernel is rejected, or to record `max_memory_allocated` around one full-attention layer. FitCheck's formulas still assume the memory-efficient kernel (see "Activations") and have not been changed.
+
 ## Not modeled yet
 
 These are known gaps. Each should show up as error in the Phase 3 calibration runs or get its own term. The last three are detected from `config.json`: the CLI names them and answers "unknown" instead of "yes", unless the part it counts already exceeds the GPU, since what is left out only adds memory.
