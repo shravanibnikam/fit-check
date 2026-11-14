@@ -34,6 +34,7 @@ import deepspeed
 import torch
 from transformers import AutoModelForCausalLM
 
+from fitcheck import recommend
 from fitcheck.estimate import Setup
 from fitcheck.model import LORA_TARGETS
 
@@ -99,7 +100,7 @@ def main():
             enabled="all", context="alloc", stacks="python", max_entries=200_000
         )
     try:
-        train(args, record)
+        train(args, setup, record)
         record["status"] = "ok"
     except Exception as e:  # noqa: BLE001  every failure must reach the rank file
         # Some DeepSpeed paths re-raise CUDA OOM as a plain RuntimeError.
@@ -123,7 +124,7 @@ def main():
         sys.exit(1)
 
 
-def train(args, record):
+def train(args, setup, record):
     record["phase"] = "load"
     model = AutoModelForCausalLM.from_pretrained(
         args.model,
@@ -148,7 +149,7 @@ def train(args, record):
         )
         model = get_peft_model(model, lora)
 
-    config = ds_config(args)
+    config = ds_config(setup)
     record["ds_config"] = config
     record["phase"] = "initialize"
     engine, *_ = deepspeed.initialize(
@@ -213,23 +214,15 @@ def train(args, record):
     record["device_used_end"] = total - free
 
 
-def ds_config(args):
-    zero = {"stage": args.zero}
-    if args.offload_optimizer:
-        zero["offload_optimizer"] = {"device": "cpu"}
-    if args.offload_param:
-        zero["offload_param"] = {"device": "cpu"}
-    return {
-        "train_micro_batch_size_per_gpu": args.micro_batch,
-        "gradient_accumulation_steps": args.grad_accum,
-        # Start the dynamic loss scale at 1 (2**0) instead of 2**16, so the
-        # first steps don't overflow. A skipped step returns before the fp32
-        # gradient copy (FP16_Optimizer.step in runtime/fp16/fused_optimizer.py),
-        # so its peak would be too low. Gradient quality doesn't matter here.
-        "fp16": {"enabled": True, "initial_scale_power": 0},
-        "optimizer": {"type": "AdamW", "params": {"lr": 1e-5}},
-        "zero_optimization": zero,
-    }
+def ds_config(setup):
+    """The config fitcheck recommend writes, with one change for calibration."""
+    config = recommend.ds_config(setup)
+    # Start the dynamic loss scale at 1 (2**0) instead of 2**16, so the first
+    # steps don't overflow. A skipped step returns before the fp32 gradient
+    # copy (FP16_Optimizer.step in runtime/fp16/fused_optimizer.py), so its
+    # peak would be too low. Gradient quality doesn't matter here.
+    config["fp16"]["initial_scale_power"] = 0
+    return config
 
 
 def environment():
