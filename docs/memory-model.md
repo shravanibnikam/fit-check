@@ -25,7 +25,7 @@ Worked example, Qwen2.5-0.5B (hidden 896, 24 layers, 14 query heads and 2 KV hea
 
 The network smoke test checks this number against the real Hub headers.
 
-Some checkpoints ship weights that transformers drops when loading, and FitCheck drops them too: Qwen3.5's multi-token-prediction head (`mtp.*`, in `_keys_to_ignore_on_load_unexpected`), and the K/V weights of Gemma 4 layers that reuse an earlier layer's K/V (gemma-4-E2B stores them anyway).
+Some checkpoints ship weights that transformers drops when loading, and FitCheck drops them too: Qwen3.5's multi-token-prediction head and vision tower (`mtp.*` and `model.visual.*`, in `Qwen3_5ForCausalLM._keys_to_ignore_on_load_unexpected`, which is what `AutoModelForCausalLM` builds), and the K/V weights of Gemma 4 layers that reuse an earlier layer's K/V (gemma-4-E2B stores them anyway).
 
 ## Bytes per parameter
 
@@ -42,17 +42,19 @@ Each ZeRO stage partitions one more kind of state across the N ranks (ZeRO paper
 | Stage | Weights | Gradients | Optimizer |
 |---|---|---|---|
 | 0 | bΨ | bΨt | KΨt |
-| 1 | bΨ | bΨt | KΨt / N |
+| 1 | bΨ | bΨt / N | KΨt / N |
 | 2 | bΨ | bΨt / N | KΨt / N |
 | 3 | bΨ / N | bΨt / N | KΨt / N |
 
-With Ψ = 7.5B, N = 64 and mixed precision this gives 120 GB, 31.4 GB, 16.6 GB and 1.88 GB, matching Figure 1 of the paper. The tests check these values.
+With Ψ = 7.5B, N = 64 and mixed precision, stages 0, 2 and 3 give 120 GB, 16.6 GB and 1.88 GB, matching Figure 1 of the paper. The tests check these values.
+
+The paper's stage 1 keeps full gradients (31.4 GB). DeepSpeed doesn't, when gradient accumulation is 1: at the end of backward ZeRO-1 copies the gradients into its reduce bucket, reduces them and drops them, keeping only its own partition (`reduce_gradients` and `reduce_independent_p_g_buckets_and_remove_grads` in `stage_1_and_2.py`). On the T4, ZeRO-1 measured exactly the same as ZeRO-2. FitCheck assumes gradient accumulation 1. With more micro-batches per step, ZeRO-0 and 1 keep full gradients between micro-batches and ZeRO-2 keeps its partition, which this estimate doesn't add yet.
 
 ## Offload
 
 Optimizer offload is valid for stages 1-3, and parameter offload only for stage 3 (`DeepSpeedZeroConfig` in `deepspeed/runtime/zero/config.py`).
 
-- Optimizer offload moves the master copy and the moments to CPU RAM and runs Adam there (ZeRO-Offload, Ren et al. 2021). At stages 2 and 3, each rank's gradient partition is also copied straight into an fp32 CPU buffer, so it leaves the GPU too (`copy_grads_in_partition` in `stage_1_and_2.py`). Stage 1 still holds full gradients on the GPU. CPU RAM needed: 16 bytes per trainable parameter (master, two moments, fp32 gradient), summed over all ranks.
+- Optimizer offload moves the master copy and the moments to CPU RAM and runs Adam there (ZeRO-Offload, Ren et al. 2021). Each rank's gradient partition is also copied straight into an fp32 CPU buffer, so it leaves the GPU too (`copy_grads_in_partition` in `stage_1_and_2.py`). CPU RAM needed: 16 bytes per trainable parameter (master, two moments, fp32 gradient), summed over all ranks.
 - Parameter offload keeps the weights in CPU RAM between uses, which adds bΨ to CPU RAM and takes the weights term on the GPU to roughly zero.
 
 ## LoRA
@@ -112,10 +114,17 @@ Three of every four layers use Gated DeltaNet, a linear-attention layer, instead
 
 With `model.gradient_checkpointing_enable()`, HF checkpoints each decoder layer (`GradientCheckpointingLayer`, `use_reentrant=False`). The forward pass keeps only each layer's input, p·h per token. Backward recomputes one layer at a time. The output head isn't checkpointed, and it runs first in backward. So the activation peak is the layer inputs plus the larger of the head's buffers and one recomputed layer.
 
-The training peak is the model states plus the larger of two moments:
+The training peak is the larger of two moments:
 
-- the start of backward, holding all activations and the head's buffers;
-- the optimizer step, after activations are freed, where DeepSpeed copies the gradients to fp32 for Adam. That copy is all trainable gradients at stage 0 (`FP16_Optimizer.step` in `deepspeed/runtime/fp16/fused_optimizer.py`), each rank's partition at stages 1-2 (`stage_1_and_2.py`), and one sub-group at a time at stage 3 (`_prepare_fp32_grad_for_sub_group` in `stage3.py`, at most `sub_group_size`, default 1e9 elements). It is 4Ψt bytes at stage 0, on the CPU with optimizer offload, and none in fp32 training.
+- The start of backward: weights, optimizer states, all activations and the head's buffers, plus the DeepSpeed buffers below. No gradients exist yet at stages 0-2, because they are created during backward, as activations are freed. ZeRO-3 is different: it allocates its gradient partition at init and keeps it (`grad_partitions_flat_buffer` in `stage3.py`), on the CPU with optimizer offload.
+- The optimizer step, after activations are freed: weights, optimizer states, gradients, the buffers, and temporary fp32 copies of the gradients. Without ZeRO, `FP16_Optimizer.step` (`deepspeed/runtime/fp16/fused_optimizer.py`) converts each gradient to fp32 and then concatenates the copies into one flat tensor, so both exist for a moment: 8Ψt bytes. With ZeRO each rank flattens its partition and converts it to fp32: (b + 4)Ψt / N bytes, one sub-group at a time at stage 3 (`_prepare_fp32_grad_for_sub_group` in `stage3.py`, at most `sub_group_size`, default 1e9 elements). With optimizer offload the copies are on the CPU, and fp32 training makes none.
+
+DeepSpeed also keeps buffers that don't depend on the model's size, from its `zero_optimization` defaults (`deepspeed/runtime/zero/config.py`):
+
+- ZeRO-3 allocates a reduce bucket of `reduce_bucket_size` (5e8) elements in the training dtype at init and never frees it (`_setup_for_real_optimizer` in `stage3.py`): 0.93 GiB in fp16, even for LoRA.
+- ZeRO-3 keeps a module's parameters gathered after it runs if the trace uses them again within `stage3_max_reuse_distance` (1e9) elements of the modules that follow (`__params_to_release` in `partitioned_param_coordinator.py`). The trace goes through the embedding, the layers and the head, then back through the head, the layers and the embedding. So layer i comes back after 2 x (parameters after it, plus the head) elements, and the last layers and the head are still gathered, as full tensors, when backward starts. For Qwen2.5-0.5B that is the whole model, because forward plus backward covers under 1e9 elements. With parameter offload the gathered copies are still on the GPU. FitCheck counts whole layers of equal size.
+- ZeRO-1 and 2 with optimizer offload keep a GPU staging buffer the size of the largest trainable tensor (`temp_grad_buffer_for_gpu_offload` in `stage_1_and_2.py`), for Qwen2.5 the embedding.
+- The ZeRO-1 and 2 reduce bucket is allocated at the first gradient hook and freed when backward ends (`setup_buckets`, `_release_ipg_buffers`). By then the head has freed more than the bucket takes, so it doesn't raise the allocated peak, though it does raise reserved memory (see Calibration).
 
 ### How the formulas are checked
 
@@ -151,7 +160,7 @@ It refuses to fit until `scripts/saved_tensors.py --device cuda` has matched eve
 These are known gaps. Each should show up as error in the Phase 3 calibration runs or get its own term. The last three are detected from `config.json`: the CLI names them and answers "unknown" instead of "yes", unless the part it counts already exceeds the GPU, since what is left out only adds memory.
 
 - Short-lived buffers other than the loss backward: matmul outputs before they are consumed, gradients of activations during backward, attention kernel workspaces.
-- Communication buckets (`reduce_bucket_size`, `allgather_bucket_size`), and the parameters stage 3 gathers and prefetches for the layer it is running.
+- ZeRO-3 prefetch beyond the parameters it keeps gathered, which the measured runs show no sign of at the start of backward.
 - Whether CUDA's SDPA output really needs no copy before `o_proj`, as assumed above. Phase 3 measures it.
 - Qwen3.5 with `flash-linear-attention` installed, and kernels from the `kernels` package.
 - Padding, which brings back masks and, on CUDA, K/V copies.

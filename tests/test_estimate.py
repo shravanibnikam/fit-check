@@ -1,6 +1,12 @@
 import pytest
 
-from fitcheck.estimate import Setup, estimate, lora_params
+from fitcheck.estimate import (
+    REDUCE_BUCKET,
+    Setup,
+    _gathered_at_backward,
+    estimate,
+    lora_params,
+)
 from fitcheck.model import Model
 
 
@@ -19,6 +25,8 @@ LLAMA2_7B = Model(
     32,
     128,
     lora_shapes=attn_shapes(32, 4096, 4096, 4096),
+    largest_param=32000 * 4096,
+    embedding_params=32000 * 4096,
 )
 # Qwen2.5-0.5B shapes: 24 layers, hidden 896, 14 query heads, 2 KV heads of 64.
 QWEN_05B = Model(
@@ -30,6 +38,9 @@ QWEN_05B = Model(
     2,
     64,
     lora_shapes=attn_shapes(24, 896, 896, 128),
+    largest_param=151936 * 896,
+    embedding_params=151936 * 896,
+    tied_embeddings=True,
 )
 
 
@@ -40,13 +51,23 @@ def model_states(m, **setup):
 
 @pytest.mark.parametrize(
     ("stage", "paper_gb"),
-    [(0, 120), (1, 31.4), (2, 16.6), (3, 1.88)],
+    [(0, 120), (2, 16.6), (3, 1.88)],
 )
 def test_matches_zero_paper_figure_1(stage, paper_gb):
     # ZeRO paper, Figure 1: 7.5B parameters, 64 GPUs, mixed-precision Adam.
     m = Model("7.5b", 7_500_000_000, 1, 1, 1, 1, 1)
     gb = model_states(m, num_gpus=64, zero_stage=stage) / 1e9
     assert gb == pytest.approx(paper_gb, rel=0.005)
+
+
+def test_zero1_holds_only_the_gradient_partition_at_the_step():
+    # The paper's ZeRO-1 keeps full gradients (31.4 GB in Figure 1). DeepSpeed
+    # with gradient accumulation 1 reduces them into the bucket at the end of
+    # backward, and ZeRO-1 measured the same as ZeRO-2 on the T4.
+    m = Model("7.5b", 7_500_000_000, 1, 1, 1, 1, 1)
+    assert model_states(m, num_gpus=64, zero_stage=1) == model_states(
+        m, num_gpus=64, zero_stage=2
+    )
 
 
 def test_lora_params_without_gqa():
@@ -77,16 +98,18 @@ def test_dtype_changes_where_bytes_go():
     assert model_states(QWEN_05B, dtype="fp16") == 16 * p
     assert model_states(QWEN_05B, dtype="fp32") == 16 * p
     # ZeRO-1 on 2 GPUs: fp32 now carries a cloned master partition as well.
-    assert model_states(QWEN_05B, dtype="bf16", num_gpus=2, zero_stage=1) == 10 * p
-    assert model_states(QWEN_05B, dtype="fp32", num_gpus=2, zero_stage=1) == 14 * p
+    assert model_states(QWEN_05B, dtype="bf16", num_gpus=2, zero_stage=1) == 9 * p
+    assert model_states(QWEN_05B, dtype="fp32", num_gpus=2, zero_stage=1) == 12 * p
 
 
 def test_optimizer_offload():
     p = QWEN_05B.num_params
     s1 = estimate(QWEN_05B, Setup(num_gpus=2, zero_stage=1, offload_optimizer=True))
-    assert (s1.optimizer, s1.grads, s1.cpu) == (0, 2 * p, 16 * p)
+    assert (s1.optimizer, s1.grads, s1.cpu) == (0, 0, 16 * p)
     s2 = estimate(QWEN_05B, Setup(num_gpus=2, zero_stage=2, offload_optimizer=True))
     assert (s2.weights, s2.grads, s2.optimizer) == (2 * p, 0, 0)
+    # The GPU staging buffer the size of the largest trainable tensor.
+    assert s2.buffers == 2 * QWEN_05B.largest_param
 
 
 def test_param_offload_moves_weights_to_cpu():
@@ -95,8 +118,21 @@ def test_param_offload_moves_weights_to_cpu():
         QWEN_05B,
         Setup(num_gpus=2, zero_stage=3, offload_optimizer=True, offload_param=True),
     )
-    assert e.gpu_total == 0
+    assert (e.weights, e.grads, e.optimizer) == (0, 0, 0)
     assert e.cpu == 16 * p + 2 * p
+    # Still on the GPU: the reduce bucket and the parameters gathered for use.
+    assert e.buffers == 2 * REDUCE_BUCKET
+    assert e.gathered > 0
+
+
+def test_zero3_keeps_parameters_gathered_within_the_reuse_distance():
+    # Qwen2.5-0.5B: forward plus backward traverse under 1e9 elements, so every
+    # parameter is still gathered when backward starts.
+    total = QWEN_05B.num_params
+    assert _gathered_at_backward(QWEN_05B, total) == total
+    # A 7B model: only the last layers and the head come back within 1e9.
+    kept = _gathered_at_backward(LLAMA2_7B, LLAMA2_7B.num_params)
+    assert 0 < kept < LLAMA2_7B.num_params / 4
 
 
 @pytest.mark.parametrize(

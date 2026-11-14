@@ -107,11 +107,17 @@ def test_peak_is_backward_or_optimizer_step():
     # One token: activations are tiny, so the fp32 gradient copy at the
     # optimizer step sets the peak.
     tiny = estimate(QWEN, Setup(seq_len=1))
-    assert tiny.step == 4 * QWEN.num_params
-    assert tiny.peak_extra == tiny.step
+    # Per-tensor fp32 copies and their concatenation, both alive at once.
+    assert tiny.step == 8 * QWEN.num_params
+    assert tiny.peak_at == "step" and tiny.allocated == tiny.at_step
     long = estimate(QWEN, Setup())
-    assert long.peak_extra == long.activations + long.logits
-    assert estimate(QWEN, Setup(num_gpus=2, zero_stage=2)).step == 2 * QWEN.num_params
+    assert long.peak_at == "backward"
+    # No gradients exist yet when backward starts.
+    assert (
+        long.backward == long.weights + long.optimizer + long.activations + long.logits
+    )
+    # ZeRO: each rank flattens its 2-byte partition and converts it to fp32.
+    assert estimate(QWEN, Setup(num_gpus=2, zero_stage=2)).step == 3 * QWEN.num_params
     assert estimate(QWEN, Setup(zero_stage=2, offload_optimizer=True)).step == 0
 
 

@@ -91,18 +91,35 @@ def main(argv: list[str] | None = None) -> None:
         f"{args.attn} attention, {ckpt}"
     )
     print()
-    print("Per GPU               GiB")
-    for label, value in [
-        ("weights", est.weights),
-        ("gradients", est.grads),
-        ("optimizer", est.optimizer),
-        ("activations", est.activations),
-        ("logits and loss", est.logits),
-        ("overhead", est.overhead),
-        ("total", est.gpu_total),
-    ]:
+    # The breakdown of whichever moment is the peak, so the rows add up.
+    if est.peak_at == "backward":
+        act, logits = est.activations or 0, est.logits or 0
+        held = est.backward - est.weights - est.optimizer - est.buffers
+        held -= est.gathered + act + logits
+        rows = [
+            ("weights", est.weights),
+            ("gradients", held),
+            ("optimizer", est.optimizer),
+            ("DeepSpeed buffers", est.buffers + est.gathered),
+            ("activations", est.activations),
+            ("logits and loss", est.logits),
+        ]
+        where = "start of backward"
+    else:
+        rows = [
+            ("weights", est.weights),
+            ("gradients", est.grads),
+            ("optimizer", est.optimizer),
+            ("DeepSpeed buffers", est.buffers),
+            ("fp32 grad copies", est.step),
+        ]
+        if est.activations is None:
+            rows.append(("activations", None))
+        where = "optimizer step"
+    print(f"Per GPU, at the {where}   GiB")
+    for label, value in rows + [("overhead", est.overhead), ("total", est.gpu_total)]:
         shown = "n/a" if value is None else f"{value / GIB:.2f}"
-        print(f"  {label:<16}{shown:>7}")
+        print(f"  {label:<18}{shown:>7}")
     if est.cpu:
         print(f"CPU RAM for offload, all ranks: {est.cpu / GIB:.2f} GiB")
     print()
@@ -119,10 +136,10 @@ def main(argv: list[str] | None = None) -> None:
                 f"{', '.join(targets)} (layers {_ranges(layers)}); only the "
                 "targets found are counted."
             )
-    if est.activations is not None and est.step > est.activations + est.logits:
+    if est.peak_at == "step" and est.activations is not None:
         print(
-            "The peak is at the optimizer step: its fp32 gradient copy "
-            f"({est.step / GIB:.2f} GiB) counts instead of activations."
+            "The peak is at the optimizer step, after activations are freed: "
+            "the gradients and their temporary fp32 copies count instead."
         )
     if model.family == "qwen3_5":
         print(
