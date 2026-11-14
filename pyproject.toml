@@ -34,3 +34,22 @@ dev = [
     "pytest>=9.1.1",
     "ruff>=0.16.10",
 ]
+# For tests/test_recommend.py only: loads generated configs with DeepSpeed's
+# own parser. Pinned to the version the calibration runs used.
+deepspeed = [
+    "deepspeed==0.19.9",
+    "torch==2.14.1",
+]
+
+[tool.uv.extra-build-dependencies]
+# DeepSpeed ships only an sdist, and its setup.py imports torch.
+deepspeed = [{ requirement = "torch", match-runtime = true }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+# CPU wheels on Linux, so CI doesn't download the CUDA libraries.
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
