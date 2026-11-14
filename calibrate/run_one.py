@@ -52,6 +52,11 @@ def main():
     p.add_argument("--checkpointing", action="store_true")
     p.add_argument("--steps", type=int, default=8)
     p.add_argument("--out-dir", required=True)
+    p.add_argument(
+        "--trace",
+        action="store_true",
+        help="also write each rank's allocator history to trace<N>.pickle",
+    )
     p.add_argument("--local_rank", type=int, default=0)  # added by the launcher
     args = p.parse_args()
 
@@ -83,6 +88,14 @@ def main():
         # run left behind.
         "device_used_start": total - free,
     }
+    if args.trace:
+        # Every allocation and free from here on, with Python stacks, so the
+        # blocks that stay cached after deepspeed.initialize can be named. View
+        # the pickle at https://pytorch.org/memory_viz ("Understanding CUDA
+        # Memory Usage" in the PyTorch docs).
+        torch.cuda.memory._record_memory_history(
+            enabled="all", context="alloc", stacks="python", max_entries=200_000
+        )
     try:
         train(args, record)
         record["status"] = "ok"
@@ -95,6 +108,9 @@ def main():
     # estimate. ru_maxrss is in KiB on Linux (getrusage(2)).
     record["peak_host_rss"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024
     os.makedirs(args.out_dir, exist_ok=True)
+    if args.trace:
+        trace = os.path.join(args.out_dir, f"trace{rank}.pickle")
+        torch.cuda.memory._dump_snapshot(trace)
     path = os.path.join(args.out_dir, f"rank{rank}.json")
     with open(path + ".tmp", "w") as f:
         json.dump(record, f)
