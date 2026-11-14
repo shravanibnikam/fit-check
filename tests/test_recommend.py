@@ -100,7 +100,10 @@ def test_config_fields():
     z = ds_config(Setup(zero_stage=3, offload_optimizer=True, dtype="fp16"))
     assert z["fp16"] == {"enabled": True}
     assert z["data_types"] == {"grad_accum_dtype": "fp16"}
-    assert z["zero_optimization"]["offload_optimizer"] == {"device": "cpu"}
+    assert z["zero_optimization"]["offload_optimizer"] == {
+        "device": "cpu",
+        "pin_memory": True,
+    }
     assert z["zero_optimization"]["overlap_comm"] is True
     assert "offload_param" not in z["zero_optimization"]
 
@@ -129,6 +132,8 @@ def test_deepspeed_accepts_every_config(stage, opt, param, dtype):
     assert parsed.bfloat16_config.enabled == (dtype == "bf16")
     assert (zero.offload_optimizer is not None) == opt
     assert (zero.offload_param is not None) == param
+    if opt:
+        assert zero.offload_optimizer.pin_memory
     assert parsed.optimizer_name == "adamw"
     assert parsed.grad_accum_dtype == dtype
     # What the estimate assumes, as DeepSpeed reads it.

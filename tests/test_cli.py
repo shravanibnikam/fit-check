@@ -145,7 +145,7 @@ def test_recommend_falls_back_to_offload(llama_folder, make_safetensors, capsys)
     assert "yes (GPU; host RAM unchecked)" in out
     assert "GiB of host RAM over all ranks; check that you have about twice" in out
     zero = json.loads(out_file.read_text())["zero_optimization"]
-    assert zero["offload_optimizer"] == {"device": "cpu"}
+    assert zero["offload_optimizer"]["device"] == "cpu"
     # A limit below the offloaded state rules it out.
     with pytest.raises(SystemExit, match="no setup fits"):
         main([*argv, "--seq-len", "64", "--host-mem", "0.1", "--out", str(out_file)])

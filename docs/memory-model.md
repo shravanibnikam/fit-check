@@ -243,7 +243,7 @@ So ZeRO-3 without checkpointing ranks above ZeRO-2 with it. Whether 1.5 times th
 - `sub_group_size: 1e9` and `stage3_max_reuse_distance: 1e9` at stage 3, the step's sub-group and the gathered parameters at the start of backward.
 - `data_types.grad_accum_dtype` equal to the training dtype. With fp32 accumulation, bf16 at ZeRO-1 switches to `BF16_Optimizer` (`_do_optimizer_sanity_check` in `deepspeed/runtime/engine.py`), which FitCheck doesn't model.
 - An `AdamW` optimizer, which DeepSpeed builds as FusedAdam on the GPU or DeepSpeedCPUAdam with optimizer offload (`get_optimizer_configuration` in `engine.py`): the 12 bytes of optimizer state per parameter the estimate counts.
-- Offload to `cpu` with `pin_memory` left at its default, off, as in the calibration runs.
+- Offload to `cpu` with `pin_memory: true`, the default (`deepspeed/runtime/zero/offload_config.py`), which the calibration runs also used. Pinned host memory is page-locked, so the offloaded state can't be swapped out: it has to fit in RAM.
 
 `tests/test_recommend.py` loads every combination of stage, offload and dtype with DeepSpeed's own parser (`DeepSpeedConfig` in `deepspeed/runtime/config.py`, which rejects unknown keys) and checks that it reads back the values above. `calibrate/run_one.py` builds its config with the same function, changing only the initial loss scale. The runs in `calibrate/results/` were made before that, with a shorter config whose effective values are the same, since every added key is at its default.
 

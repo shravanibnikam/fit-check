@@ -135,8 +135,10 @@ def recommend_main(argv: list[str]) -> None:
         "--out", default="ds_config.json", help="where to write the config"
     )
     args = parser.parse_args(argv)
-    if args.gpu_mem is None:
-        parser.error("--gpu-mem is required")
+    if args.gpu_mem is None or args.gpu_mem <= 0:
+        parser.error("--gpu-mem is required and must be above 0")
+    if args.host_mem is not None and args.host_mem < 0:
+        parser.error("--host-mem must not be negative")
     base, model = _load(args)
     host = None if args.host_mem is None else args.host_mem * GIB
     opts = recommend.options(model, base, args.gpu_mem * GIB, host)
@@ -191,9 +193,12 @@ def recommend_main(argv: list[str]) -> None:
             )
         sys.exit("fitcheck: no setup fits. No config written.")
 
-    with open(args.out, "w") as f:
-        json.dump(recommend.ds_config(pick.setup, lr=args.lr), f, indent=2)
-        f.write("\n")
+    try:
+        with open(args.out, "w") as f:
+            json.dump(recommend.ds_config(pick.setup, lr=args.lr), f, indent=2)
+            f.write("\n")
+    except OSError as err:
+        sys.exit(f"fitcheck: can't write {args.out}: {err}")
     print(f"Best: {_setup_label(pick.setup)}. Wrote {args.out}.")
     if pick.estimate.cpu:
         print(

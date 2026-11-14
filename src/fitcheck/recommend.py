@@ -123,11 +123,13 @@ def ds_config(setup: Setup, lr: float = 1e-5) -> dict:
     if setup.zero_stage == 3:
         zero["sub_group_size"] = ZERO3_SUB_GROUP
         zero["stage3_max_reuse_distance"] = MAX_REUSE_DISTANCE
-    # pin_memory stays at its default, off, as in the calibration runs.
+    # Pinned (page-locked) host buffers, the default in offload_config.py and
+    # what the calibration runs used. They can't be swapped out.
+    offload = {"device": "cpu", "pin_memory": True}
     if setup.offload_optimizer:
-        zero["offload_optimizer"] = {"device": "cpu"}
+        zero["offload_optimizer"] = offload
     if setup.offload_param:
-        zero["offload_param"] = {"device": "cpu"}
+        zero["offload_param"] = dict(offload)
     config = {
         "train_micro_batch_size_per_gpu": setup.micro_batch,
         "gradient_accumulation_steps": setup.grad_accum,
