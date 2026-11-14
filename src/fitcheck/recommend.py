@@ -109,8 +109,8 @@ def ds_config(setup: Setup, lr: float = 1e-5) -> dict:
     with fp32 accumulation, bf16 ZeRO-1 switches to BF16_Optimizer
     (_do_optimizer_sanity_check in deepspeed/runtime/engine.py), which FitCheck
     does not model. AdamW from the config is FusedAdam on the GPU, or
-    DeepSpeedCPUAdam with optimizer offload, the 16 bytes per parameter the
-    estimate counts (get_optimizer_configuration in engine.py).
+    DeepSpeedCPUAdam with optimizer offload, with the 12 bytes of state per
+    parameter the estimate counts (get_optimizer_configuration in engine.py).
     """
     zero = {"stage": setup.zero_stage}
     if setup.zero_stage > 0:

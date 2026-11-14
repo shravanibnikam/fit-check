@@ -218,6 +218,37 @@ FitCheck's own T4 runs don't show this because they used torch 2.14.1, whose mem
 
 If that is what runs, one s x s fp32 tensor is 8 heads x s² x 4 bytes: 0.50 GiB at 4096 and 1.13 GiB at 6144. About three of them alive during one layer's recompute and backward would be 1.5 GiB and 3.4 GiB, against measured gaps of 1.27-1.29 and 3.47. That fits in size and in growth, but "about three" is my reading of the source and no run has looked at the allocator. The check is to call SDPA on the T4 with `enable_gqa=True` inside `sdpa_kernel(SDPBackend.EFFICIENT_ATTENTION)`, which should raise if the kernel is rejected, or to record `max_memory_allocated` around one full-attention layer. FitCheck's formulas still assume the memory-efficient kernel (see "Activations") and have not been changed.
 
+## Choosing a setup
+
+`fitcheck recommend` estimates every ZeRO and offload combination DeepSpeed accepts (stages 0-3, optimizer offload at stages 1-3, parameter offload at stage 3), each with and without activation checkpointing, for the same model, task, dtype and batch. That is 16 setups (`recommend.options`).
+
+A setup fits when P / (1 - e) + C is at most the GPU's memory, where P is the predicted allocated peak, C the CUDA context, and e the largest calibration error, |predicted / measured - 1|, from `calibration.json` (3.4% now). If the estimate is off by e, the measured peak is at most P / (1 - e). The plain `fitcheck` estimate keeps its verdict without this margin.
+
+Host RAM can only rule a setup out. The offload estimate counts the offloaded state: 16 bytes per trainable parameter, plus the weights with parameter offload. It leaves out the model as loaded on the CPU and the Python, PyTorch and CUDA runtimes. On the T4 the 0.5B offload runs predicted 7.36 GiB (8.28 GiB with parameter offload) and measured 13.76 to 17.14 GiB over both ranks, 1.9 to 2.1 times the estimate, and every 1.5B offload run (23 GiB predicted) failed on Kaggle's 31 GB of host RAM. So a setup over `--host-mem` is ruled out, and one under it is marked "host RAM unchecked". If a model has something FitCheck doesn't model, no setup is recommended and no config is written, since a "yes" could be wrong.
+
+The setups are ranked by this order, cheapest first. It is a rule of thumb from how each feature works, not measured:
+
+1. Offload: none, then the optimizer, then the optimizer and the parameters. Optimizer offload runs Adam on the CPU and moves every step's gradients and weights over PCIe (ZeRO-Offload, Ren et al. 2021). Parameter offload also moves the weights in for every forward and backward.
+2. Checkpointing: off, then on. It runs each layer's forward again in backward, about a third more compute, since backward costs about twice the forward.
+3. ZeRO stage, lowest first. Stages 1 and 2 communicate as much as plain data parallelism, 2Ψ per step, and stage 3 communicates 3Ψ (ZeRO paper, section 7).
+
+So ZeRO-3 without checkpointing ranks above ZeRO-2 with it. Whether 1.5 times the communication over the T4's PCIe costs more than a third more compute has not been measured.
+
+### The generated config
+
+`recommend.ds_config` writes a config for `deepspeed.initialize` or the `deepspeed` launcher, with concrete values (no HF Trainer `"auto"`). Besides the micro-batch, gradient accumulation, dtype and ZeRO stage, it writes out the DeepSpeed v0.19.9 defaults the estimate depends on, so the estimate stays right if a default changes:
+
+- `contiguous_gradients: true` and `reduce_bucket_size: 5e8`. The ZeRO-1 gradient and ZeRO-3 bucket terms assume both.
+- `overlap_comm`, on only at stage 3, as `overlap_comm_valid` in `deepspeed/runtime/zero/config.py` sets it. With it off, ZeRO-1 reduces only at the accumulation boundary.
+- `sub_group_size: 1e9` and `stage3_max_reuse_distance: 1e9` at stage 3, the step's sub-group and the gathered parameters at the start of backward.
+- `data_types.grad_accum_dtype` equal to the training dtype. With fp32 accumulation, bf16 at ZeRO-1 switches to `BF16_Optimizer` (`_do_optimizer_sanity_check` in `deepspeed/runtime/engine.py`), which FitCheck doesn't model.
+- An `AdamW` optimizer, which DeepSpeed builds as FusedAdam on the GPU or DeepSpeedCPUAdam with optimizer offload (`get_optimizer_configuration` in `engine.py`): the 12 bytes of optimizer state per parameter the estimate counts.
+- Offload to `cpu` with `pin_memory` left at its default, off, as in the calibration runs.
+
+`tests/test_recommend.py` loads every combination of stage, offload and dtype with DeepSpeed's own parser (`DeepSpeedConfig` in `deepspeed/runtime/config.py`, which rejects unknown keys) and checks that it reads back the values above. `calibrate/run_one.py` builds its config with the same function, changing only the initial loss scale. The runs in `calibrate/results/` were made before that, with a shorter config whose effective values are the same, since every added key is at its default.
+
+The training script must still set what the config can't hold: the attention implementation, `gradient_checkpointing_enable()` and `model.train()`, the LoRA targets, and `logits_to_keep` for loss on the last tokens. `fitcheck recommend` prints these.
+
 ## Not modeled yet
 
 These are known gaps. Each should show up as error in the Phase 3 calibration runs or get its own term. The last three are detected from `config.json`: the CLI names them and answers "unknown" instead of "yes", unless the part it counts already exceeds the GPU, since what is left out only adds memory.
