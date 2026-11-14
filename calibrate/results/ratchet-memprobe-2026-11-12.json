@@ -1,0 +1,421 @@
+[
+ {
+  "model": "Qwen/Qwen3.5-0.8B",
+  "revision": "2fc06364715b967f1860aea9cf38778875588b17",
+  "dtype": "float16",
+  "lora_rank": 16,
+  "targets": [
+   "q_proj",
+   "k_proj",
+   "v_proj",
+   "o_proj"
+  ],
+  "seq_len": 512,
+  "micro_batch": 1,
+  "checkpointing": true,
+  "answer_only": true,
+  "fla": true,
+  "device": "Tesla T4",
+  "torch": "2.11.0+cu130",
+  "transformers": "5.22.2",
+  "fla_importable": true,
+  "phases": [
+   [
+    "load",
+    1.4249000549316406,
+    1.4249000549316406
+   ],
+   [
+    "peft",
+    1.4289283752441406,
+    1.4289588928222656
+   ],
+   [
+    "forward",
+    1.5807981491088867,
+    1.7202415466308594
+   ],
+   [
+    "backward",
+    1.5099873542785645,
+    1.8291544914245605
+   ]
+  ],
+  "trainable_params": 1081344,
+  "total_params": 753474368,
+  "lora_layers": 24,
+  "after_load_gib": 1.4289283752441406,
+  "step_s": [
+   288.77072431100004,
+   0.5039531620000162,
+   0.5150346870000249
+  ],
+  "loss": 14.331048965454102,
+  "peak_allocated_gib": 1.8291544914245605,
+  "peak_reserved_gib": 2.119140625,
+  "status": "ok",
+  "index": 0,
+  "wall_s": 318.3
+ },
+ {
+  "model": "Qwen/Qwen3.5-0.8B",
+  "revision": "2fc06364715b967f1860aea9cf38778875588b17",
+  "dtype": "float16",
+  "lora_rank": 16,
+  "targets": [
+   "q_proj",
+   "k_proj",
+   "v_proj",
+   "o_proj"
+  ],
+  "seq_len": 4096,
+  "micro_batch": 1,
+  "checkpointing": true,
+  "answer_only": true,
+  "fla": true,
+  "device": "Tesla T4",
+  "torch": "2.11.0+cu130",
+  "transformers": "5.22.2",
+  "fla_importable": true,
+  "phases": [
+   [
+    "load",
+    1.4249000549316406,
+    1.4249000549316406
+   ],
+   [
+    "peft",
+    1.4289283752441406,
+    1.4289588928222656
+   ],
+   [
+    "forward",
+    1.7594537734985352,
+    3.001408100128174
+   ],
+   [
+    "backward",
+    1.5236859321594238,
+    3.912379264831543
+   ]
+  ],
+  "trainable_params": 1081344,
+  "total_params": 753474368,
+  "lora_layers": 24,
+  "after_load_gib": 1.4289283752441406,
+  "step_s": [
+   7.14073002300006,
+   5.024105819000056,
+   5.081248998999968
+  ],
+  "loss": 14.387893676757812,
+  "peak_allocated_gib": 3.920435905456543,
+  "peak_reserved_gib": 4.296875,
+  "status": "ok",
+  "index": 1,
+  "wall_s": 31.0
+ },
+ {
+  "model": "Qwen/Qwen3.5-0.8B",
+  "revision": "2fc06364715b967f1860aea9cf38778875588b17",
+  "dtype": "float16",
+  "lora_rank": 16,
+  "targets": [
+   "q_proj",
+   "k_proj",
+   "v_proj",
+   "o_proj"
+  ],
+  "seq_len": 4096,
+  "micro_batch": 1,
+  "checkpointing": true,
+  "answer_only": true,
+  "fla": false,
+  "device": "Tesla T4",
+  "torch": "2.11.0+cu130",
+  "transformers": "5.22.2",
+  "fla_importable": false,
+  "phases": [
+   [
+    "load",
+    1.4249000549316406,
+    1.4249000549316406
+   ],
+   [
+    "peft",
+    1.4289283752441406,
+    1.4289588928222656
+   ],
+   [
+    "forward",
+    1.7594537734985352,
+    3.001408100128174
+   ],
+   [
+    "backward",
+    1.5236859321594238,
+    3.912379264831543
+   ]
+  ],
+  "trainable_params": 1081344,
+  "total_params": 753474368,
+  "lora_layers": 24,
+  "after_load_gib": 1.4289283752441406,
+  "step_s": [
+   8.396470211000064,
+   7.450072270000078,
+   7.526924308000048
+  ],
+  "loss": 14.375643730163574,
+  "peak_allocated_gib": 3.920435905456543,
+  "peak_reserved_gib": 4.51953125,
+  "status": "ok",
+  "index": 2,
+  "wall_s": 34.5
+ },
+ {
+  "model": "Qwen/Qwen3.5-0.8B",
+  "revision": "2fc06364715b967f1860aea9cf38778875588b17",
+  "dtype": "float16",
+  "lora_rank": 16,
+  "targets": [
+   "q_proj",
+   "k_proj",
+   "v_proj",
+   "o_proj"
+  ],
+  "seq_len": 4096,
+  "micro_batch": 1,
+  "checkpointing": true,
+  "answer_only": false,
+  "fla": true,
+  "status": "oom",
+  "phases": [
+   [
+    "load",
+    1.4249000549316406,
+    1.4249000549316406
+   ],
+   [
+    "peft",
+    1.4289283752441406,
+    1.4289588928222656
+   ],
+   [
+    "forward",
+    5.430139064788818,
+    11.121545314788818
+   ],
+   [
+    "backward",
+    1.4644818305969238,
+    13.008233070373535
+   ]
+  ],
+  "error": "  File \"/usr/local/lib/python3.13/dist-packages/torch/_tensor.py\", line 631, in backward |     torch.autograd.backward( |     ~~~~~~~~~~~~~~~~~~~~~~~^ |         self, gradient, retain_graph, create_graph, inputs=inputs |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ |     ) |     ^ |   File \"/usr/local/lib/python3.13/dist-packages/torch/autograd/__init__.py\", line 381, in backward |     _engine_run_backward( |     ~~~~~~~~~~~~~~~~~~~~^ |         tensors, |         ^^^^^^^^ |     ...<5 lines>... |         accumulate_grad=True, |         ^^^^^^^^^^^^^^^^^^^^^ |     ) |     ^ |   File \"/usr/local/lib/python3.13/dist-packages/torch/autograd/graph.py\", line 869, in _engine_run_backward |     return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass |            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ |         t_outputs, *args, **kwargs |         ^^^^^^^^^^^^^^^^^^^^^^^^^^ |     )  # Calls into the C++ engine to run the backward pass |     ^ | torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.79 GiB. GPU 0 has a total capacity of 14.56 GiB of which 1.22 GiB is free. Including non-PyTorch memory, this process has 13.34 GiB memory in use. Of the allocated memory 9.24 GiB is allocated by PyTorch, and 3.88 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)",
+  "index": 3,
+  "wall_s": 23.2
+ },
+ {
+  "model": "Qwen/Qwen3.5-2B",
+  "revision": "15852e8c16360a2fea060d615a32b45270f8a8fc",
+  "dtype": "float16",
+  "lora_rank": 16,
+  "targets": [
+   "q_proj",
+   "k_proj",
+   "v_proj",
+   "o_proj"
+  ],
+  "seq_len": 4096,
+  "micro_batch": 1,
+  "checkpointing": true,
+  "answer_only": true,
+  "fla": true,
+  "device": "Tesla T4",
+  "torch": "2.11.0+cu130",
+  "transformers": "5.22.2",
+  "fla_importable": true,
+  "phases": [
+   [
+    "load",
+    3.5051937103271484,
+    3.5051937103271484
+   ],
+   [
+    "peft",
+    3.5106868743896484,
+    3.5107479095458984
+   ],
+   [
+    "forward",
+    4.044341087341309,
+    5.277502536773682
+   ],
+   [
+    "backward",
+    3.6225342750549316,
+    6.252015113830566
+   ]
+  ],
+  "trainable_params": 1474560,
+  "total_params": 1883299648,
+  "lora_layers": 24,
+  "after_load_gib": 3.5106868743896484,
+  "step_s": [
+   8.136404448000008,
+   6.201257367000039,
+   6.289697142000023
+  ],
+  "loss": 14.133237838745117,
+  "peak_allocated_gib": 6.263001441955566,
+  "peak_reserved_gib": 6.921875,
+  "status": "ok",
+  "index": 4,
+  "wall_s": 66.5
+ },
+ {
+  "model": "Qwen/Qwen3.5-2B",
+  "revision": "15852e8c16360a2fea060d615a32b45270f8a8fc",
+  "dtype": "float16",
+  "lora_rank": 16,
+  "targets": [
+   "q_proj",
+   "k_proj",
+   "v_proj",
+   "o_proj"
+  ],
+  "seq_len": 4096,
+  "micro_batch": 1,
+  "checkpointing": false,
+  "answer_only": true,
+  "fla": true,
+  "status": "oom",
+  "phases": [
+   [
+    "load",
+    3.5051937103271484,
+    3.5051937103271484
+   ],
+   [
+    "peft",
+    3.5106868743896484,
+    3.5107479095458984
+   ]
+  ],
+  "error": "        ^^^^^^^^^ |     ) |     ^ |   File \"/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py\", line 1779, in _wrapped_call_impl |     return self._call_impl(*args, **kwargs) |            ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^ |   File \"/usr/local/lib/python3.13/dist-packages/torch/nn/modules/module.py\", line 1790, in _call_impl |     return forward_call(*args, **kwargs) |   File \"/usr/local/lib/python3.13/dist-packages/transformers/models/qwen3_5/modeling_qwen3_5.py\", line 793, in forward |     attn_output, attn_weights = attention_interface( |                                 ~~~~~~~~~~~~~~~~~~~^ |         self, |         ^^^^^ |     ...<6 lines>... |         **kwargs, |         ^^^^^^^^^ |     ) |     ^ |   File \"/usr/local/lib/python3.13/dist-packages/transformers/integrations/sdpa_attention.py\", line 174, in sdpa_attention_forward |     attn_output = torch.nn.functional.scaled_dot_product_attention( |         query, |     ...<6 lines>... |         **sdpa_kwargs, |     ) | torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 512.00 MiB. GPU 0 has a total capacity of 14.56 GiB of which 234.81 MiB is free. Including non-PyTorch memory, this process has 14.33 GiB memory in use. Of the allocated memory 14.00 GiB is allocated by PyTorch, and 118.65 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)",
+  "index": 5,
+  "wall_s": 18.8
+ },
+ {
+  "model": "Qwen/Qwen3.5-2B",
+  "revision": "15852e8c16360a2fea060d615a32b45270f8a8fc",
+  "dtype": "float16",
+  "lora_rank": 16,
+  "targets": "all-linear",
+  "seq_len": 4096,
+  "micro_batch": 1,
+  "checkpointing": true,
+  "answer_only": true,
+  "fla": true,
+  "device": "Tesla T4",
+  "torch": "2.11.0+cu130",
+  "transformers": "5.22.2",
+  "fla_importable": true,
+  "phases": [
+   [
+    "load",
+    3.5051937103271484,
+    3.5051937103271484
+   ],
+   [
+    "peft",
+    3.567850112915039,
+    3.567972183227539
+   ],
+   [
+    "forward",
+    4.101504325866699,
+    5.334665775299072
+   ],
+   [
+    "backward",
+    3.736860752105713,
+    6.310643196105957
+   ]
+  ],
+  "trainable_params": 16819200,
+  "total_params": 1898644288,
+  "lora_layers": 186,
+  "after_load_gib": 3.567850112915039,
+  "step_s": [
+   9.70195822100004,
+   7.82527302699998,
+   8.067105201000004
+  ],
+  "loss": 13.496194839477539,
+  "peak_allocated_gib": 6.435956001281738,
+  "peak_reserved_gib": 7.25390625,
+  "status": "ok",
+  "index": 6,
+  "wall_s": 41.4
+ },
+ {
+  "model": "Qwen/Qwen3.5-2B",
+  "revision": "15852e8c16360a2fea060d615a32b45270f8a8fc",
+  "dtype": "float16",
+  "lora_rank": 16,
+  "targets": [
+   "q_proj",
+   "k_proj",
+   "v_proj",
+   "o_proj"
+  ],
+  "seq_len": 6144,
+  "micro_batch": 1,
+  "checkpointing": true,
+  "answer_only": true,
+  "fla": true,
+  "device": "Tesla T4",
+  "torch": "2.11.0+cu130",
+  "transformers": "5.22.2",
+  "fla_importable": true,
+  "phases": [
+   [
+    "load",
+    3.5051937103271484,
+    3.5051937103271484
+   ],
+   [
+    "peft",
+    3.5106868743896484,
+    3.5107479095458984
+   ],
+   [
+    "forward",
+    4.247992515563965,
+    7.047567844390869
+   ],
+   [
+    "backward",
+    3.638174533843994,
+    9.085015296936035
+   ]
+  ],
+  "trainable_params": 1474560,
+  "total_params": 1883299648,
+  "lora_layers": 24,
+  "after_load_gib": 3.5106868743896484,
+  "step_s": [
+   35.59401796899999,
+   11.871640320999973,
+   11.448481770999933
+  ],
+  "loss": 13.801640510559082,
+  "peak_allocated_gib": 9.096001625061035,
+  "peak_reserved_gib": 9.9375,
+  "status": "ok",
+  "index": 7,
+  "wall_s": 74.9
+ }
+]
