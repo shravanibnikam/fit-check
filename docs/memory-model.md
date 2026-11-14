@@ -98,6 +98,23 @@ Mistral, and Qwen2 with `use_sliding_window`, have sliding-window layers. Once t
 
 The logits are often the largest allocation. The model returns bf16 logits (p·V per token, V the vocabulary size), and `ForCausalLMLoss` upcasts them to fp32 and keeps the log-softmax output (F·V). At the start of backward, log-softmax's backward also holds the incoming gradient and its result, two more fp32 tensors of the same size. So the head peaks at (p + 3F)·V per token: 14 bytes per vocabulary entry in bf16. Gemma's final logit softcapping keeps one more p·V (the tanh output). For Qwen2.5-0.5B (V = 151,936) that is 4.07 GiB for 2048 tokens, more than all 24 layers together. Phase 6's fused linear plus cross-entropy kernel targets exactly this.
 
+### Loss on the last n tokens
+
+Some training loops compute the loss on the answer only:
+
+    logits = model(input_ids=ids, logits_to_keep=n + 1).logits[:, :-1].float()
+    loss = F.cross_entropy(logits.reshape(-1, vocab), ids[:, -n:].reshape(-1))
+
+`Setup.loss_tokens = n` (`--loss-tokens n`) models this. The decoder layers are unchanged. The head changes because `lm_head` runs on `hidden_states[:, -(n + 1):]` (`slice_indices` in the `ForCausalLM.forward` of Llama, Qwen2, Qwen3.5 and Gemma 4), and the loss runs on n positions. Counting what autograd saves, per sequence:
+
+- Log-softmax keeps its fp32 output: F·V per kept token, n tokens. The slice `[:, :-1]` is a view, and `.float()` saves nothing.
+- `nll_loss` keeps the targets and the `total_weight` scalar. With b = 1, `ids[:, -n:].reshape(-1)` is a view of the input ids, so nothing new is kept. With b > 1 the reshape copies: 8 bytes per kept token.
+- `lm_head` keeps its input if its weight trains. With b = 1 the slice is contiguous, so it is a view and the whole final-norm output (p·h per token, all s tokens) stays alive. With b > 1 `linear` flattens the slice with a copy, so only b·(n + 1) rows are kept.
+- Gemma's softcapping keeps the tanh output on the n + 1 positions.
+- Nothing is held: the caller drops the bf16 logits after `.float()`. The backward buffers are the same two fp32 tensors as before, on n tokens.
+
+For b = 1 and a Llama-style model the head is the final norm, p·s·h, F·n·V + F, and 2F·n·V of backward buffers, against (p + 3F)·s·V in the default. For Qwen2.5-0.5B at s = 2048 and n = 64 the logits and loss drop from 4.07 GiB to under 0.2 GiB. `scripts/saved_tensors.py` checks these byte for byte for Llama, Qwen3.5 and Gemma 4 (full and LoRA, b = 1 and 2). It assumes the caller does not keep the model output alive during backward.
+
 ### Gemma 4
 
 - Four norms per layer, plus norms on q, k and v. Every Gemma norm keeps two fp32 copies of its input when its weight trains, so norms cost more than in Llama.
@@ -128,7 +145,7 @@ DeepSpeed also keeps buffers that don't depend on the model's size, from its `ze
 
 ### How the formulas are checked
 
-`scripts/saved_tensors.py` builds small random-weight models that keep each family's structure: grouped-query attention, sliding windows, shared K/V, per-layer embeddings, K = V on global layers, global head_dim over 256, and DeltaNet layers. It runs a training forward pass on CPU, records every tensor autograd saves, and compares bytes per layer with the formulas. All 36 cases match exactly: six configs (Llama, Mistral, Qwen2 with sliding layers, two Gemma 4 and Qwen3.5), full fine-tuning and LoRA, and SDPA bf16, eager bf16 and SDPA fp32.
+`scripts/saved_tensors.py` builds small random-weight models that keep each family's structure: grouped-query attention, sliding windows, shared K/V, per-layer embeddings, K = V on global layers, global head_dim over 256, and DeltaNet layers. It runs a training forward pass on CPU, records every tensor autograd saves, and compares bytes per layer with the formulas. All cases match exactly: six configs (Llama, Mistral, Qwen2 with sliding layers, two Gemma 4 and Qwen3.5), full fine-tuning and LoRA, and SDPA bf16, eager bf16 and SDPA fp32, plus the answer-only loss above.
 
     uv run --group check python scripts/saved_tensors.py -v
 

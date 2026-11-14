@@ -195,3 +195,35 @@ def test_families_cover_every_layer(cfg, family):
     parts = FAMILIES[family](cfg, Setup(), 2)
     assert len(parts.layers) == cfg["num_hidden_layers"]
     assert all(n > 0 for n in parts.layers)
+
+
+def test_loss_tokens_changes_only_the_head():
+    # docs/memory-model.md, "Loss on the last n tokens": Qwen2.5-0.5B, bf16, full.
+    V, h, t, n = 151936, 896, 2048, 64
+    e = estimate(QWEN, Setup(loss_tokens=n))
+    norm = t * (4 * h + 4 + 2 * h) + t * 2 * h  # final norm, lm_head's input
+    # log-softmax output and total_weight; batch 1 reuses the input ids as targets.
+    assert e.logits == norm + n * 4 * V + 4 + 2 * n * 4 * V
+
+
+def test_loss_tokens_layers_match_the_default():
+    base = estimate(QWEN, Setup(checkpointing=False))
+    kept = estimate(QWEN, Setup(loss_tokens=64))
+    assert kept.activations == base.activations
+    assert kept.logits < base.logits // 10
+
+
+def test_loss_tokens_copies_targets_and_head_input_past_batch_one():
+    # b = 2, n = 8: targets are a copy (b * n int64) and lm_head keeps a copy of
+    # its b * (n + 1) input rows instead of the whole norm output.
+    V, h, n = 151936, 896, 8
+    e = estimate(QWEN, Setup(loss_tokens=n, micro_batch=2))
+    norm = 2 * 2048 * (4 * h + 4 + 2 * h)
+    expected = norm + 2 * 9 * 2 * h + 2 * n * 4 * V + 2 * n * 8 + 4 + 2 * 2 * n * 4 * V
+    assert e.logits == expected
+
+
+@pytest.mark.parametrize("n", [0, -1, 2048, 5000])
+def test_loss_tokens_must_be_inside_the_sequence(n):
+    with pytest.raises(ValueError, match="loss_tokens"):
+        Setup(loss_tokens=n)

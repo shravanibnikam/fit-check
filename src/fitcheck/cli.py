@@ -45,6 +45,11 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--checkpointing", action="store_true", help="activation checkpointing"
     )
+    parser.add_argument(
+        "--loss-tokens",
+        type=int,
+        help="loss on the last N tokens only (logits_to_keep=N + 1); default all",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -59,6 +64,7 @@ def main(argv: list[str] | None = None) -> None:
             seq_len=args.seq_len,
             attn=args.attn,
             checkpointing=args.checkpointing,
+            loss_tokens=args.loss_tokens,
         )
         config, tensors = hub.load(args.model, revision=args.revision)
         model = from_config(args.model, config, tensors)
@@ -89,6 +95,7 @@ def main(argv: list[str] | None = None) -> None:
     print(
         f"micro-batch {args.micro_batch} x {args.seq_len} tokens, "
         f"{args.attn} attention, {ckpt}"
+        + (f", loss on last {args.loss_tokens} tokens" if args.loss_tokens else "")
     )
     print()
     # The breakdown of whichever moment is the peak, so the rows add up.

@@ -55,6 +55,9 @@ class Setup:
     seq_len: int = 2048
     attn: str = "sdpa"  # attn_implementation, "sdpa" or "eager"
     checkpointing: bool = False  # model.gradient_checkpointing_enable()
+    # None: HF's loss from labels over every token. n: loss on the last n tokens
+    # only, via logits_to_keep=n + 1 (see "Loss on the last n tokens" in docs).
+    loss_tokens: int | None = None
 
     def __post_init__(self):
         if self.dtype not in DTYPE_BYTES:
@@ -67,6 +70,8 @@ class Setup:
             raise ValueError("lora_rank must be at least 1")
         if self.micro_batch < 1 or self.seq_len < 1:
             raise ValueError("micro_batch and seq_len must be at least 1")
+        if self.loss_tokens is not None and not 1 <= self.loss_tokens < self.seq_len:
+            raise ValueError("loss_tokens must be at least 1 and below seq_len")
         if self.attn not in ("sdpa", "eager"):
             raise ValueError('attn must be "sdpa" or "eager"')
         # Both rules come from DeepSpeedZeroConfig in deepspeed/runtime/zero/config.py.

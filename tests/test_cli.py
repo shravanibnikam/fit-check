@@ -88,3 +88,12 @@ def test_counts_activations_for_known_families(tmp_path, make_safetensors, capsy
 def test_invalid_setup_exits_with_message(folder):
     with pytest.raises(SystemExit, match="parameter offload needs ZeRO stage 3"):
         main([folder, "--zero", "2", "--offload-param"])
+
+
+def test_loss_tokens_is_shown_and_shrinks_the_head(folder, capsys):
+    main([folder, "--gpu-mem", "1"])
+    full = capsys.readouterr().out
+    main([folder, "--gpu-mem", "1", "--loss-tokens", "8"])
+    out = capsys.readouterr().out
+    assert "loss on last 8 tokens" in out
+    assert "loss on last" not in full
