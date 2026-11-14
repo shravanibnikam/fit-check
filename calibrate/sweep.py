@@ -9,6 +9,10 @@ A run still going after TIMEOUT_S is killed with all its ranks. Runs already in
 results.jsonl are skipped, so the sweep resumes after a restart. --only runs just
 the named runs (the notebook's smoke mode), and --dry-run prints every command
 without running anything.
+
+--grid recommend runs the Phase 4 check instead: what `fitcheck recommend`
+picks for a few goals on 2x T4, and the cheaper setup it rejected, to see that
+the pick trains within its prediction and the rejected one runs out of memory.
 """
 
 import argparse
@@ -82,6 +86,29 @@ def grid() -> list[tuple[str, Setup]]:
     return sorted(unique.values(), key=lambda r: _host_heavy(*r))
 
 
+# One T4's total memory as torch reports it (total_memory in results.jsonl).
+T4_BYTES = 15_636_037_632
+
+
+def recommend_grid() -> list[tuple[str, Setup]]:
+    """`fitcheck recommend --gpus 2 --gpu-mem 14.56 --dtype fp16` picks, and the
+    setup ranked just before each pick, which it rejects for GPU memory.
+    tests/test_sweep.py checks against the Hub that these are still the picks."""
+    fp16 = {"num_gpus": 2, "dtype": "fp16"}
+    return [
+        # Full fine-tune at 4096: ZeRO-1 with checkpointing is picked; ZeRO-0
+        # with checkpointing is predicted over the T4.
+        ("0.5B", Setup(**fp16, seq_len=4096, zero_stage=1, checkpointing=True)),
+        ("0.5B", Setup(**fp16, seq_len=4096, zero_stage=0, checkpointing=True)),
+        # Gradient accumulation 4, not measured before: ZeRO-1 is picked; ZeRO-0
+        # is under the T4 without the calibration margin and over it with.
+        ("0.5B", Setup(**fp16, seq_len=2048, grad_accum=4, zero_stage=1)),
+        ("0.5B", Setup(**fp16, seq_len=2048, grad_accum=4, zero_stage=0)),
+        # LoRA at 4096: ZeRO-0 with checkpointing is picked.
+        ("1.5B", Setup(**fp16, seq_len=4096, lora_rank=16, checkpointing=True)),
+    ]
+
+
 def _host_heavy(size: str, s: Setup) -> bool:
     return size == "1.5B" and (s.offload_optimizer or s.offload_param)
 
@@ -91,6 +118,7 @@ def run_id(size: str, s: Setup) -> str:
     parts += ["oo"] * s.offload_optimizer + ["op"] * s.offload_param
     parts += [f"lora{s.lora_rank}"] if s.lora_rank else []
     parts += [f"s{s.seq_len}", f"mb{s.micro_batch}", s.attn]
+    parts += [f"ga{s.grad_accum}"] * (s.grad_accum > 1)
     parts += ["ckpt"] * s.checkpointing + [f"g{s.num_gpus}"]
     return "-".join(parts)
 
@@ -105,6 +133,7 @@ def command(size: str, s: Setup, out_dir: str, port: int) -> list[str]:
     cmd += ["--lora-rank", str(s.lora_rank)] if s.lora_rank else []
     cmd += ["--seq-len", str(s.seq_len), "--micro-batch", str(s.micro_batch)]
     cmd += ["--attn", s.attn] + ["--checkpointing"] * s.checkpointing
+    cmd += ["--grad-accum", str(s.grad_accum)] * (s.grad_accum > 1)
     return cmd + ["--steps", str(STEPS), "--out-dir", out_dir]
 
 
@@ -179,13 +208,19 @@ def main():
     p.add_argument("--work-dir", required=True, help="per-run rank files and logs")
     p.add_argument("--only", nargs="+", metavar="RUN", help="run only these run ids")
     p.add_argument("--dry-run", action="store_true", help="print the commands only")
+    p.add_argument(
+        "--grid",
+        default="calibration",
+        choices=["calibration", "recommend"],
+        help="the Phase 3 sweep (default) or the Phase 4 recommend check",
+    )
     args = p.parse_args()
 
     done = set()
     if os.path.exists(args.results):
         with open(args.results) as f:
             done = {json.loads(line)["run"] for line in f if line.strip()}
-    runs = grid()
+    runs = grid() if args.grid == "calibration" else recommend_grid()
     unknown = set(args.only or []) - {run_id(*r) for r in runs}
     if unknown:
         p.error(f"not in the grid: {', '.join(sorted(unknown))}")

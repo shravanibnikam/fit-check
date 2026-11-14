@@ -94,3 +94,37 @@ def test_notebook_smoke_runs_are_in_the_grid():
     assert set(smoke) <= {sweep.run_id(*r) for r in sweep.grid()}
     # The smoke push flips exactly this line.
     assert source.splitlines().count("SMOKE = False") == 1
+
+
+def test_recommend_grid_ids_and_commands():
+    runs = sweep.recommend_grid()
+    ids = [sweep.run_id(size, s) for size, s in runs]
+    assert len(set(ids)) == len(ids) == 5
+    assert "0.5B-z1-s2048-mb1-sdpa-ga4-g2" in ids
+    size, s = runs[2]
+    cmd = sweep.command(size, s, "/out", 29600)
+    assert cmd[cmd.index("--grad-accum") + 1] == "4"
+    # Existing calibration ids don't change.
+    assert not any("ga" in sweep.run_id(*r) for r in sweep.grid())
+
+
+@pytest.mark.network
+def test_recommend_grid_matches_what_recommend_picks(monkeypatch):
+    from fitcheck import estimate, hub, recommend
+    from fitcheck.model import from_config
+
+    # The CLI's numbers: the fitted CUDA context, not conftest's bare theory.
+    context = estimate.CALIBRATION["cuda_context_bytes"]
+    monkeypatch.setattr(estimate, "CUDA_CONTEXT_BYTES", context)
+    runs = sweep.recommend_grid()
+    for i in (0, 2, 4):  # picks; the run before each pick is the rejected one
+        size, s = runs[i]
+        name, revision = sweep.MODELS[size]
+        model = from_config(name, *hub.load(name, revision=revision))
+        opts = recommend.options(model, s, sweep.T4_BYTES)
+        pick = recommend.best(opts)
+        assert pick.setup == s
+        if i < 4:
+            before = opts[opts.index(pick) - 1]
+            assert before.setup == runs[i + 1][1]
+            assert (before.fits, before.reason) == ("no", "GPU memory")
