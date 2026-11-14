@@ -1,0 +1,416 @@
+[{"stream_name":"stderr","time":8.882138444,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":8.882182081,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":8.882186055,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":8.882188828,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stderr","time":9.51945617,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":9.519488923,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":9.519494157,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":9.519498226,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stdout","time":10.748153602,"data":"checkpointing rerun\n"}
+,{"stream_name":"stdout","time":10.817130402,"data":"Sat Nov 14 07:45:55 2026       \r\n"}
+,{"stream_name":"stdout","time":10.817257775,"data":"+-----------------------------------------------------------------------------------------+\r\n"}
+,{"stream_name":"stdout","time":10.817267374,"data":"| NVIDIA-SMI 580.178.04             Driver Version: 580.178.04     CUDA Version: 13.0     |\r\n"}
+,{"stream_name":"stdout","time":10.817272193,"data":"+-----------------------------------------+------------------------+----------------------+\r\n"}
+,{"stream_name":"stdout","time":10.817276514,"data":"| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |\r\n"}
+,{"stream_name":"stdout","time":10.817280631,"data":"| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |\r\n"}
+,{"stream_name":"stdout","time":10.817284629,"data":"|                                         |                        |               MIG M. |\r\n"}
+,{"stream_name":"stdout","time":10.817288999,"data":"|=========================================+========================+======================|\r\n"}
+,{"stream_name":"stdout","time":10.868267967,"data":"|   0  Tesla T4                       Off |   00000000:00:04.0 Off |                    0 |\r\n"}
+,{"stream_name":"stdout","time":10.868289662,"data":"| N/A   52C    P8             10W /   70W |       0MiB /  15360MiB |      0%      Default |\r\n"}
+,{"stream_name":"stdout","time":10.868294222,"data":"|                                         |                        |                  N/A |\r\n"}
+,{"stream_name":"stdout","time":10.868299704,"data":"+-----------------------------------------+------------------------+----------------------+\r\n"}
+,{"stream_name":"stdout","time":10.868304751,"data":"|   1  Tesla T4                       Off |   00000000:00:05.0 Off |                    0 |\r\n"}
+,{"stream_name":"stdout","time":10.86831272,"data":"| N/A   41C    P8              9W /   70W |       0MiB /  15360MiB |      0%      Default |\r\n"}
+,{"stream_name":"stdout","time":10.868315282,"data":"|                                         |                        |                  N/A |\r\n"}
+,{"stream_name":"stdout","time":10.868318204,"data":"+-----------------------------------------+------------------------+----------------------+\r\n"}
+,{"stream_name":"stdout","time":10.868338474,"data":"\r\n"}
+,{"stream_name":"stdout","time":10.868342249,"data":"+-----------------------------------------------------------------------------------------+\r\n"}
+,{"stream_name":"stdout","time":10.868346354,"data":"| Processes:                                                                              |\r\n"}
+,{"stream_name":"stdout","time":10.868360966000001,"data":"|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |\r\n"}
+,{"stream_name":"stdout","time":10.868364922,"data":"|        ID   ID                                                               Usage      |\r\n"}
+,{"stream_name":"stdout","time":10.868385115,"data":"|=========================================================================================|\r\n"}
+,{"stream_name":"stdout","time":10.868388578,"data":"|  No running processes found                                                             |\r\n"}
+,{"stream_name":"stdout","time":10.868414312,"data":"+-----------------------------------------------------------------------------------------+\r\n"}
+,{"stream_name":"stdout","time":11.303460592,"data":"nvcc: NVIDIA (R) Cuda compiler driver\r\n"}
+,{"stream_name":"stdout","time":11.303491986,"data":"Copyright (c) 2005-2025 NVIDIA Corporation\r\n"}
+,{"stream_name":"stdout","time":11.303495473,"data":"Built on Fri_Feb_21_20:23:50_PST_2025\r\n"}
+,{"stream_name":"stdout","time":11.30349815,"data":"Cuda compilation tools, release 12.8, V12.8.93\r\n"}
+,{"stream_name":"stdout","time":11.303500629,"data":"Build cuda_12.8.r12.8/compiler.35583870_0\r\n"}
+,{"stream_name":"stdout","time":11.41553169,"data":"Python 3.13.15\r\n"}
+,{"stream_name":"stdout","time":11.541804934,"data":"               total        used        free      shared  buff/cache   available\r\n"}
+,{"stream_name":"stdout","time":11.541833106,"data":"Mem:            31Gi       1.2Gi        25Gi       1.7Mi       4.7Gi        30Gi\r\n"}
+,{"stream_name":"stdout","time":11.54183807,"data":"Swap:             0B          0B          0B\r\n"}
+,{"stream_name":"stdout","time":11.712748665,"data":"Cloning into '/tmp/fit-check'...\r\n"}
+,{"stream_name":"stdout","time":12.878678373,"data":"remote: Enumerating objects: 42, done.\u001b[K\r\n"}
+,{"stream_name":"stdout","time":12.878701111,"data":"remote: Counting objects:   2% (1/42)\u001b[K\rremote: Counting objects:   4% (2/42)\u001b[K\rremote: Counting objects:   7% (3/42)\u001b[K\rremote: Counting objects:   9% (4/42)\u001b[K\rremote: Counting objects:  11% (5/42)\u001b[K\rremote: Counting objects:  14% (6/42)\u001b[K\rremote: Counting objects:  16% (7/42)\u001b[K\rremote: Counting objects:  19% (8/42)\u001b[K\rremote: Counting objects:  21% (9/42)\u001b[K\rremote: Counting objects:  23% (10/42)\u001b[K\rremote: Counting objects:  26% (11/42)\u001b[K\rremote: Counting objects:  28% (12/42)\u001b[K\rremote: Counting objects:  30% (13/42)\u001b[K\rremote: Counting objects:  33% (14/42)\u001b[K\rremote: Counting objects:  35% (15/42)\u001b[K\rremote: Counting objects:  38% (16/42)\u001b[K\rremote: Counting objects:  40% (17/42)\u001b[K\rremote: Counting objects:  42% (18/42)\u001b[K\rremote: Counting objects:  45% (19/42)\u001b[K\rremote: Counting objects:  47% (20/42)\u001b[K\rremote: Counting objects:  50% (21/42)\u001b[K\rremote: Counting objects:  52% (22/42)\u001b[K\rremote: Counting objects:  54% (23/42)\u001b[K\rremote: Counting objects:  57% (24/42)\u001b[K\rremote: Counting objects:  59% (25/42)\u001b[K\rremote: Counting objects:  61% (26/42)\u001b[K\rremote: Counting objects:  64% (27/42)\u001b[K\rremote: Counting objects:  66% (28/42)\u001b[K\rremote: Counting objects:  69% (29/42)\u001b[K\rremote: Counting objects:  71% (30/42)\u001b[K\rremote: Counting objects:  73% (31/42)\u001b[K\rremote: Counting objects:  76% (32/42)\u001b[K\rremote: Counting objects:  78% (33/42)\u001b[K\rremote: Counting objects:  80% (34/42)\u001b[K\rremote: Counting objects:  83% (35/42)\u001b[K\rremote: Counting objects:  85% (36/42)\u001b[K\rremote: Counting objects:  88% (37/42)\u001b[K\rremote: Counting objects:  90% (38/42)\u001b[K\rremote: Counting objects:  92% (39/42)\u001b[K\rremote: Counting objects:  95% (40/42)\u001b[K\rremote: Counting objects:  97% (41/42)\u001b[K\rremote: Counting objects: 100% (42/42)\u001b[K\rremote: Counting objects: 100% (42/42), done.\u001b[K\r\n"}
+,{"stream_name":"stdout","time":12.878728855,"data":"remote: Compressing objects:   2% (1/36)\u001b[K\rremote: Compressing objects:   5% (2/36)\u001b[K\rremote: Compressing objects:   8% (3/36)\u001b[K\rremote: Compressing objects:  11% (4/36)\u001b[K\rremote: Compressing objects:  13% (5/36)\u001b[K\rremote: Compressing objects:  16% (6/36)\u001b[K\rremote: Compressing objects:  19% (7/36)\u001b[K\rremote: Compressing objects:  22% (8/36)\u001b[K\rremote: Compressing objects:  25% (9/36)\u001b[K\rremote: Compressing objects:  27% (10/36)\u001b[K\rremote: Compressing objects:  30% (11/36)\u001b[K\rremote: Compressing objects:  33% (12/36)\u001b[K\rremote: Compressing objects:  36% (13/36)\u001b[K\rremote: Compressing objects:  38% (14/36)\u001b[K\rremote: Compressing objects:  41% (15/36)\u001b[K\rremote: Compressing objects:  44% (16/36)\u001b[K\rremote: Compressing objects:  47% (17/36)\u001b[K\rremote: Compressing objects:  50% (18/36)\u001b[K\rremote: Compressing objects:  52% (19/36)\u001b[K\rremote: Compressing objects:  55% (20/36)\u001b[K\rremote: Compressing objects:  58% (21/36)\u001b[K\rremote: Compressing objects:  61% (22/36)\u001b[K\rremote: Compressing objects:  63% (23/36)\u001b[K\rremote: Compressing objects:  66% (24/36)\u001b[K\rremote: Compressing objects:  69% (25/36)\u001b[K\rremote: Compressing objects:  72% (26/36)\u001b[K\rremote: Compressing objects:  75% (27/36)\u001b[K\rremote: Compressing objects:  77% (28/36)\u001b[K\rremote: Compressing objects:  80% (29/36)\u001b[K\rremote: Compressing objects:  83% (30/36)\u001b[K\rremote: Compressing objects:  86% (31/36)\u001b[K\rremote: Compressing objects:  88% (32/36)\u001b[K\rremote: Compressing objects:  91% (33/36)\u001b[K\rremote: Compressing objects:  94% (34/36)\u001b[K\rremote: Compressing objects:  97% (35/36)\u001b[K\rremote: Compressing objects: 100% (36/36)\u001b[K\rremote: Compressing objects: 100% (36/36), done.\u001b[K\r\n"}
+,{"stream_name":"stdout","time":12.928870306,"data":"Receiving objects:   2% (1/42)\rReceiving objects:   4% (2/42)\rReceiving objects:   7% (3/42)\rReceiving objects:   9% (4/42)\rReceiving objects:  11% (5/42)\rReceiving objects:  14% (6/42)\rReceiving objects:  16% (7/42)\rReceiving objects:  19% (8/42)\rReceiving objects:  21% (9/42)\rReceiving objects:  23% (10/42)\rReceiving objects:  26% (11/42)\rReceiving objects:  28% (12/42)\rReceiving objects:  30% (13/42)\rReceiving objects:  33% (14/42)\rReceiving objects:  35% (15/42)\rReceiving objects:  38% (16/42)\rReceiving objects:  40% (17/42)\rReceiving objects:  42% (18/42)\rReceiving objects:  45% (19/42)\rReceiving objects:  47% (20/42)\rReceiving objects:  50% (21/42)\rReceiving objects:  52% (22/42)\rReceiving objects:  54% (23/42)\rReceiving objects:  57% (24/42)\rReceiving objects:  59% (25/42)\rReceiving objects:  61% (26/42)\rReceiving objects:  64% (27/42)\rReceiving objects:  66% (28/42)\rReceiving objects:  69% (29/42)\rReceiving objects:  71% (30/42)\rReceiving objects:  73% (31/42)\rReceiving objects:  76% (32/42)\rReceiving objects:  78% (33/42)\rReceiving objects:  80% (34/42)\rReceiving objects:  83% (35/42)\rReceiving objects:  85% (36/42)\rReceiving objects:  88% (37/42)\rReceiving objects:  90% (38/42)\rReceiving objects:  92% (39/42)\rReceiving objects:  95% (40/42)\rReceiving objects:  97% (41/42)\rremote: Total 42 (delta 0), reused 18 (delta 0), pack-reused 0 (from 0)\u001b[K\r\n"}
+,{"stream_name":"stdout","time":12.928904843,"data":"Receiving objects: 100% (42/42)\rReceiving objects: 100% (42/42), 152.21 KiB | 12.68 MiB/s, done.\r\n"}
+,{"stream_name":"stdout","time":13.056483405,"data":"\u001b[33m0f471e1\u001b[m\u001b[33m (\u001b[m\u001b[1;34mgrafted\u001b[m\u001b[33m, \u001b[m\u001b[1;36mHEAD\u001b[m\u001b[33m -\u003e \u001b[m\u001b[1;32mphase-3\u001b[m\u001b[33m, \u001b[m\u001b[1;31morigin/phase-3\u001b[m\u001b[33m)\u001b[m Add MIT license\r\n"}
+,{"stream_name":"stdout","time":13.285005713,"data":"116-    model.train()\r\n"}
+,{"stream_name":"stdout","time":13.285028212,"data":"117:    vocab = model.config.vocab_size\r\n"}
+,{"stream_name":"stdout","time":13.485189562,"data":"preinstalled torch 2.11.0+cu128\n"}
+,{"stream_name":"stdout","time":13.485212674,"data":"nvcc CUDA 12 -\u003e https://download.pytorch.org/whl/cu126\n"}
+,{"stream_name":"stdout","time":14.172096724,"data":"Found existing installation: torchvision 0.26.0+cu128\n"}
+,{"stream_name":"stdout","time":14.212123831,"data":"Uninstalling torchvision-0.26.0+cu128:\n"}
+,{"stream_name":"stdout","time":14.373824668,"data":"Found existing installation: torchvision 0.26.0+cu128\n"}
+,{"stream_name":"stdout","time":14.373847449,"data":"Uninstalling torchvision-0.26.0+cu128:\n"}
+,{"stream_name":"stdout","time":14.529518178,"data":"  Successfully uninstalled torchvision-0.26.0+cu128\n"}
+,{"stream_name":"stdout","time":14.568997337999999,"data":"Found existing installation: torchaudio 2.11.0+cu128\n"}
+,{"stream_name":"stdout","time":14.591331134,"data":"Uninstalling torchaudio-2.11.0+cu128:\n"}
+,{"stream_name":"stdout","time":14.712338936,"data":"  Successfully uninstalled torchaudio-2.11.0+cu128\n"}
+,{"stream_name":"stdout","time":14.731961182,"data":"  Successfully uninstalled torchvision-0.26.0+cu128\n"}
+,{"stream_name":"stdout","time":14.73197962,"data":"Found existing installation: torchaudio 2.11.0+cu128\n"}
+,{"stream_name":"stdout","time":14.731984306,"data":"Uninstalling torchaudio-2.11.0+cu128:\n"}
+,{"stream_name":"stdout","time":14.731988293,"data":"  Successfully uninstalled torchaudio-2.11.0+cu128\n"}
+,{"stream_name":"stdout","time":14.73445572,"data":"Found existing installation: torchao 0.10.0\n"}
+,{"stream_name":"stdout","time":14.813455806,"data":"Uninstalling torchao-0.10.0:\n"}
+,{"stream_name":"stdout","time":14.936677298,"data":"Found existing installation: torchao 0.10.0\n"}
+,{"stream_name":"stdout","time":14.936701223,"data":"Uninstalling torchao-0.10.0:\n"}
+,{"stream_name":"stdout","time":15.203086002,"data":"  Successfully uninstalled torchao-0.10.0\n"}
+,{"stream_name":"stdout","time":15.40588254,"data":"  Successfully uninstalled torchao-0.10.0\n"}
+,{"stream_name":"stderr","time":185.498104137,"data":"ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.\n"}
+,{"stream_name":"stderr","time":185.498139793,"data":"easyocr 1.7.2 requires torchvision\u003e=0.5, which is not installed.\n"}
+,{"stream_name":"stderr","time":185.498147741,"data":"fastai 2.8.8 requires torchvision\u003e=0.11, which is not installed.\n"}
+,{"stream_name":"stderr","time":185.498154274,"data":"timm 1.0.29 requires torchvision, which is not installed.\n"}
+,{"stream_name":"stderr","time":185.70348677,"data":"ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.\n"}
+,{"stream_name":"stderr","time":185.703514113,"data":"easyocr 1.7.2 requires torchvision\u003e=0.5, which is not installed.\n"}
+,{"stream_name":"stderr","time":185.703519642,"data":"fastai 2.8.8 requires torchvision\u003e=0.11, which is not installed.\n"}
+,{"stream_name":"stderr","time":185.703524739,"data":"timm 1.0.29 requires torchvision, which is not installed.\n"}
+,{"stream_name":"stderr","time":185.703529219,"data":"\n"}
+,{"stream_name":"stderr","time":185.7035337,"data":"ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.\n"}
+,{"stream_name":"stderr","time":185.703556949,"data":"easyocr 1.7.2 requires torchvision\u003e=0.5, which is not installed.\n"}
+,{"stream_name":"stderr","time":185.703561066,"data":"fastai 2.8.8 requires torchvision\u003e=0.11, which is not installed.\n"}
+,{"stream_name":"stderr","time":185.703565812,"data":"timm 1.0.29 requires torchvision, which is not installed.\n"}
+,{"stream_name":"stderr","time":213.070543588,"data":"ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.\n"}
+,{"stream_name":"stderr","time":213.070567421,"data":"timm 1.0.29 requires torchvision, which is not installed.\n"}
+,{"stream_name":"stderr","time":213.070572662,"data":"gradio 6.26.0 requires pillow\u003c13.0,\u003e=8.0, but you have pillow 13.0.0 which is incompatible.\n"}
+,{"stream_name":"stderr","time":213.27322672,"data":"ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.\n"}
+,{"stream_name":"stderr","time":213.273270465,"data":"timm 1.0.29 requires torchvision, which is not installed.\n"}
+,{"stream_name":"stderr","time":213.273274471,"data":"gradio 6.26.0 requires pillow\u003c13.0,\u003e=8.0, but you have pillow 13.0.0 which is incompatible.\n"}
+,{"stream_name":"stderr","time":213.273277636,"data":"\n"}
+,{"stream_name":"stderr","time":213.273280109,"data":"ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.\n"}
+,{"stream_name":"stderr","time":213.273283183,"data":"timm 1.0.29 requires torchvision, which is not installed.\n"}
+,{"stream_name":"stderr","time":213.273285706,"data":"gradio 6.26.0 requires pillow\u003c13.0,\u003e=8.0, but you have pillow 13.0.0 which is incompatible.\n"}
+,{"stream_name":"stdout","time":304.475711155,"data":"ops built\n"}
+,{"stream_name":"stdout","time":304.680510872,"data":"ops built\n"}
+,{"stream_name":"stdout","time":326.444764318,"data":"torch 2.14.1+cu126 cuda 12.6 deepspeed 0.19.9 transformers 5.19.0 peft 0.21.2\n"}
+,{"stream_name":"stdout","time":326.444799963,"data":"Tesla T4 ['sm_50', 'sm_60', 'sm_70', 'sm_75', 'sm_80', 'sm_86', 'sm_90']\n"}
+,{"stream_name":"stdout","time":326.647776739,"data":"torch 2.14.1+cu126 cuda 12.6 deepspeed 0.19.9 transformers 5.19.0 peft 0.21.2\n"}
+,{"stream_name":"stdout","time":326.64781617,"data":"Tesla T4 ['sm_50', 'sm_60', 'sm_70', 'sm_75', 'sm_80', 'sm_86', 'sm_90']\n"}
+,{"stream_name":"stdout","time":328.650786046,"data":"\rDownloading bytes:                                          |  0.00B            \r\n"}
+,{"stream_name":"stdout","time":328.650818671,"data":"\rReconstructing (incomplete total...): |            |  0.00B /  0.00B            \u001b[A\r\n"}
+,{"stream_name":"stdout","time":328.650825499,"data":"\r\n"}
+,{"stream_name":"stdout","time":328.853023301,"data":"\rFetching 10 files:   0%|                                 | 0/10 [00:00\u003c?, ?it/s]\u001b[A\u001b[AWarning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.\r\n"}
+,{"stream_name":"stdout","time":328.853052925,"data":"\r\n"}
+,{"stream_name":"stdout","time":328.853056777,"data":"\rReconstructing (incomplete total...):   0%|        |  0.00B / 11.3kB            \u001b[A\r\n"}
+,{"stream_name":"stdout","time":328.853060304,"data":"\rReconstructing (incomplete total...): 100%|████████| 11.3kB / 11.3kB            \u001b[A\rDownloading bytes: █████████████████████████████████████████| 11.3kB            \r\n"}
+,{"stream_name":"stdout","time":328.853073181,"data":"\r\n"}
+,{"stream_name":"stdout","time":328.904609305,"data":"\rFetching 10 files:  10%|██▌                      | 1/10 [00:00\u003c00:02,  4.02it/s]\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":328.904644785,"data":"\rReconstructing (incomplete total...):  99%|███████▉| 11.3kB / 11.5kB            \u001b[A\r\n"}
+,{"stream_name":"stdout","time":328.904652485,"data":"\rReconstructing (incomplete total...):   1%|        | 11.5kB / 1.68MB            \u001b[A\r\n"}
+,{"stream_name":"stdout","time":328.904657255,"data":"\rReconstructing (incomplete total...):   1%|        | 11.5kB / 1.68MB            \u001b[A\r\n"}
+,{"stream_name":"stdout","time":328.904661633,"data":"\rReconstructing (incomplete total...):   1%|        | 12.2kB / 1.69MB            \u001b[A\r\n"}
+,{"stream_name":"stdout","time":328.904665771,"data":"\rReconstructing (incomplete total...):   0%|        | 13.7kB / 8.72MB            \u001b[A\r\n"}
+,{"stream_name":"stdout","time":329.005745423,"data":"\rReconstructing (incomplete total...):   0%|        | 13.7kB / 8.72MB            \u001b[A\r\n"}
+,{"stream_name":"stdout","time":329.005768817,"data":"\rReconstructing (incomplete total...):  19%|█▌      | 1.69MB / 8.72MB            \u001b[A\rDownloading bytes: ███████▉                                 | 1.69MB            \r\n"}
+,{"stream_name":"stdout","time":329.005774812,"data":"\r\n"}
+,{"stream_name":"stdout","time":329.107076215,"data":"\rFetching 10 files:  60%|███████████████          | 6/10 [00:00\u003c00:00, 17.70it/s]\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":329.157932487,"data":"\rReconstructing (incomplete total...): 100%|███████▉| 8.72MB / 8.73MB            \u001b[A\r\n"}
+,{"stream_name":"stdout","time":329.157957042,"data":"\rReconstructing (incomplete total...):  76%|██████  | 8.73MB / 11.5MB            \u001b[A\r\n"}
+,{"stream_name":"stdout","time":329.157962803,"data":"\rReconstructing (incomplete total...): 100%|████████| 11.5MB / 11.5MB            \u001b[A\rDownloading bytes: █████████████████████████████████████████| 11.5MB            \r\n"}
+,{"stream_name":"stdout","time":329.157968438,"data":"\r\n"}
+,{"stream_name":"stdout","time":329.259431056,"data":"\rFetching 10 files:  90%|██████████████████████▌  | 9/10 [00:00\u003c00:00, 19.47it/s]\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":331.385406226,"data":"\rReconstructing (incomplete total...):   1%|        | 11.5MB / 1.00GB            \u001b[A\rDownloading bytes: █▎                                       | 32.4MB, 30.7MB/s  \rDownloading bytes: █▉                                       | 47.5MB, 13.7MB/s  \rDownloading bytes: ███▏                                     | 77.8MB, 22.5MB/s  \rDownloading bytes: ████▍                                    |  108MB, 45.9MB/s  \r\n"}
+,{"stream_name":"stdout","time":331.587913862,"data":"\rReconstructing (incomplete total...):  11%|▉       |  112MB / 1.00GB            \u001b[A\r\n"}
+,{"stream_name":"stdout","time":331.790924713,"data":"\rReconstructing (incomplete total...):  13%|█       |  129MB / 1.00GB, 43.5MB/s  \u001b[A\r\n"}
+,{"stream_name":"stdout","time":331.993464804,"data":"\rReconstructing (incomplete total...):  14%|█       |  136MB / 1.00GB, 47.8MB/s  \u001b[A\rDownloading bytes: █████▎                                   |  129MB, 73.4MB/s  \r\n"}
+,{"stream_name":"stdout","time":332.095771566,"data":"\rReconstructing (incomplete total...):  14%|█▏      |  144MB / 1.00GB, 45.9MB/s  \u001b[A\r\n"}
+,{"stream_name":"stdout","time":332.197188516,"data":"\rReconstructing (incomplete total...):  16%|█▏      |  156MB / 1.00GB, 45.2MB/s  \u001b[A\r\n"}
+,{"stream_name":"stdout","time":332.299144495,"data":"\rReconstructing (incomplete total...):  17%|█▎      |  167MB / 1.00GB, 52.5MB/s  \u001b[A\rDownloading bytes: ██████                                   |  148MB, 54.6MB/s  \r\n"}
+,{"stream_name":"stdout","time":332.83319916,"data":"\rReconstructing (incomplete total...):  18%|█▍      |  184MB / 1.00GB, 59.6MB/s  \u001b[A\rDownloading bytes: ██████▋                                  |  162MB, 56.8MB/s  \rDownloading bytes: ███████▋                                 |  187MB, 65.7MB/s  \rDownloading bytes: █████████▊                               |  241MB, 90.9MB/s  \rDownloading bytes: ████████████▎                            |  301MB,  161MB/s  \rDownloading bytes: ██████████████▍                          |  351MB,  243MB/s  \r\n"}
+,{"stream_name":"stdout","time":333.198362642,"data":"\rReconstructing (incomplete total...):  32%|██▌     |  322MB / 1.00GB, 75.7MB/s  \u001b[A\rDownloading bytes: ████████████████▋                        |  407MB,  296MB/s  \rDownloading bytes: ██████████████████▉                      |  462MB,  352MB/s  \rDownloading bytes: █████████████████████                    |  513MB,  401MB/s  \rDownloading bytes: ███████████████████████▏                 |  566MB,  428MB/s  \r\n"}
+,{"stream_name":"stdout","time":333.301244915,"data":"\rReconstructing (incomplete total...):  53%|████▏   |  527MB / 1.00GB,  179MB/s  \u001b[A\r\n"}
+,{"stream_name":"stdout","time":333.406260073,"data":"\rReconstructing (incomplete total...):  61%|████▊   |  608MB / 1.00GB,  300MB/s  \u001b[A\rDownloading bytes: ███████████████████████████              |  660MB,  455MB/s  \r\n"}
+,{"stream_name":"stdout","time":333.560589773,"data":"\rReconstructing (incomplete total...):  67%|█████▎  |  668MB / 1.00GB,  358MB/s  \u001b[A\rDownloading bytes: █████████████████████████████▍           |  718MB,  454MB/s  \r\n"}
+,{"stream_name":"stdout","time":333.714328148,"data":"\rReconstructing (incomplete total...):  79%|██████▎ |  792MB / 1.00GB,  391MB/s  \u001b[A\rDownloading bytes: ███████████████████████████████▌         |  770MB,  483MB/s  \rDownloading bytes: ██████████████████████████████████       |  830MB,  475MB/s  \r\n"}
+,{"stream_name":"stdout","time":338.21994325,"data":"\rReconstructing (incomplete total...):  91%|███████▎|  907MB / 1.00GB,  524MB/s  \u001b[A\rFetching 10 files: 100%|████████████████████████| 10/10 [00:09\u003c00:00,  1.04it/s]\r\n"}
+,{"stream_name":"stdout","time":338.219984784,"data":"\rDownloading bytes: █████████████████████████████████████████|  866MB,  507MB/s  \rDownload complete: █████████████████████████████████████████|  866MB,  507MB/s  \r\n"}
+,{"stream_name":"stdout","time":338.52307988,"data":"\rReconstruction complete: 100%|█████████████████████| 1.00GB / 1.00GB,  536MB/s  \u001b[A\r\n"}
+,{"stream_name":"stdout","time":338.523125765,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.52313086,"data":"\rDownloading bytes:                                          |  0.00B            \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":338.523134943,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.523138184,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.523141514,"data":"\rReconstructing (incomplete total...): |            |  0.00B /  0.00B            \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":338.52314522,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.523148395,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.523151687,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.776768834,"data":"\rFetching 10 files:   0%|                                 | 0/10 [00:00\u003c?, ?it/s]\u001b[A\u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":338.776792489,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.776797535,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.776801852,"data":"\rReconstructing (incomplete total...):   0%|        |  0.00B / 3.85kB            \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":338.776806459,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.77681017,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.776814032,"data":"\rReconstructing (incomplete total...): 100%|████████| 3.85kB / 3.85kB            \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":338.776818551,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.776821745,"data":"\rDownloading bytes: █████████████████████████████████████████| 3.85kB            \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":338.776825892,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.776829065,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.828418804,"data":"\rReconstructing (incomplete total...):  85%|██████▊ | 3.85kB / 4.53kB            \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":338.828442234,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.828446539,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.828449547,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.828452733,"data":"\rFetching 10 files:  10%|██▌                      | 1/10 [00:00\u003c00:02,  3.70it/s]\u001b[A\u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":338.828456937,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.82845994,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.828462649,"data":"\rReconstructing (incomplete total...):   0%|        | 4.53kB / 7.04MB            \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":338.828466342,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.828469319,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.828472547,"data":"\rReconstructing (incomplete total...):   0%|        | 4.53kB / 7.04MB            \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":338.828476354,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.828479257,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.828481968,"data":"\rReconstructing (incomplete total...):   0%|        | 6.05kB / 7.04MB            \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":338.828484996,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.828487932,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.828491099,"data":"\rReconstructing (incomplete total...):   0%|        | 6.19kB / 3.09GB            \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":338.828494396,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.828506226,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.878800513,"data":"\rReconstructing (incomplete total...):   0%|        | 6.19kB / 3.10GB            \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":338.878822784,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.878827441,"data":"\r\n"}
+,{"stream_name":"stdout","time":338.878831334,"data":"\rReconstructing (incomplete total...):   0%|        | 8.71MB / 3.10GB            \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":338.878835231,"data":"\r\n"}
+,{"stream_name":"stdout","time":339.031151929,"data":"\rDownloading bytes:                                          | 8.71MB            \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":339.031174545,"data":"\r\n"}
+,{"stream_name":"stdout","time":339.031178608,"data":"\r\n"}
+,{"stream_name":"stdout","time":339.031181963,"data":"\rReconstructing (incomplete total...):   0%|        | 8.71MB / 3.10GB            \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":339.031185803,"data":"\r\n"}
+,{"stream_name":"stdout","time":339.031188983,"data":"\r\n"}
+,{"stream_name":"stdout","time":339.081536122,"data":"\rReconstructing (incomplete total...):   0%|        | 8.71MB / 3.10GB            \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":339.081556583,"data":"\r\n"}
+,{"stream_name":"stdout","time":339.081561327,"data":"\r\n"}
+,{"stream_name":"stdout","time":339.081565057,"data":"\r\n"}
+,{"stream_name":"stdout","time":339.081568731,"data":"\rFetching 10 files:  70%|█████████████████▌       | 7/10 [00:00\u003c00:00, 15.18it/s]\u001b[A\u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":339.081573755,"data":"\r\n"}
+,{"stream_name":"stdout","time":339.081576881,"data":"\r\n"}
+,{"stream_name":"stdout","time":339.949051691,"data":"\rReconstructing (incomplete total...):   0%|        | 8.72MB / 3.10GB            \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":339.949075399,"data":"\r\n"}
+,{"stream_name":"stdout","time":340.063601158,"data":"\rDownloading bytes: ▎                                        | 27.4MB            \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":340.063634374,"data":"\r\n"}
+,{"stream_name":"stdout","time":340.063639088,"data":"\r\n"}
+,{"stream_name":"stdout","time":340.063642678,"data":"\rReconstructing (incomplete total...):   1%|        | 19.9MB / 3.10GB            \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":340.063647175,"data":"\r\n"}
+,{"stream_name":"stdout","time":340.162443401,"data":"\rDownloading bytes: ▉                                        | 71.8MB, 19.8MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":340.162491957,"data":"\r\n"}
+,{"stream_name":"stdout","time":340.266148923,"data":"\rDownloading bytes: █▊                                       |  136MB, 63.2MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":340.266178845,"data":"\r\n"}
+,{"stream_name":"stdout","time":340.369564139,"data":"\rDownloading bytes: ██▋                                      |  202MB,  137MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":340.369646391,"data":"\r\n"}
+,{"stream_name":"stdout","time":340.469818143,"data":"\rDownloading bytes: ███▌                                     |  266MB,  216MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":340.469854096,"data":"\r\n"}
+,{"stream_name":"stdout","time":340.573608224,"data":"\rDownloading bytes: ████▎                                    |  329MB,  293MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":340.573646934,"data":"\r\n"}
+,{"stream_name":"stdout","time":340.678046745,"data":"\rDownloading bytes: █████▏                                   |  392MB,  360MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":340.678076678,"data":"\r\n"}
+,{"stream_name":"stdout","time":340.782376333,"data":"\rDownloading bytes: █████▉                                   |  453MB,  420MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":340.782432341,"data":"\r\n"}
+,{"stream_name":"stdout","time":340.888062675,"data":"\rDownloading bytes: ██████▊                                  |  519MB,  467MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":340.888089042,"data":"\r\n"}
+,{"stream_name":"stdout","time":340.9398585,"data":"\rDownloading bytes: ███████▋                                 |  580MB,  511MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":340.939891335,"data":"\r\n"}
+,{"stream_name":"stdout","time":340.939895502,"data":"\r\n"}
+,{"stream_name":"stdout","time":341.045011125,"data":"\rReconstructing (incomplete total...):   5%|▍       |  149MB / 3.10GB, 12.8MB/s  \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":341.045044083,"data":"\r\n"}
+,{"stream_name":"stdout","time":341.149402692,"data":"\rDownloading bytes: █████████▏                               |  696MB,  538MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":341.14942977,"data":"\r\n"}
+,{"stream_name":"stdout","time":341.365913158,"data":"\rDownloading bytes: ██████████                               |  763MB,  553MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":341.365946658,"data":"\r\n"}
+,{"stream_name":"stdout","time":341.466715447,"data":"\rDownloading bytes: ███████████▌                             |  870MB,  578MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":341.466746885,"data":"\r\n"}
+,{"stream_name":"stdout","time":341.466751082,"data":"\r\n"}
+,{"stream_name":"stdout","time":341.623585612,"data":"\rReconstructing (incomplete total...):  20%|█▌      |  621MB / 3.10GB, 75.7MB/s  \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":341.623616652,"data":"\r\n"}
+,{"stream_name":"stdout","time":341.728513365,"data":"\rDownloading bytes: █████████████▏                           |  994MB,  561MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":341.728542744,"data":"\r\n"}
+,{"stream_name":"stdout","time":341.780946291,"data":"\rDownloading bytes: █████████████▉                           | 1.06GB,  549MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":341.780982604,"data":"\r\n"}
+,{"stream_name":"stdout","time":341.884737734,"data":"\rDownloading bytes: ██████████████▊                          | 1.12GB,  566MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":341.884770201,"data":"\r\n"}
+,{"stream_name":"stdout","time":341.884774094,"data":"\r\n"}
+,{"stream_name":"stdout","time":341.987264602,"data":"\rReconstructing (incomplete total...):  27%|██      |  822MB / 3.10GB,  314MB/s  \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":341.987297115,"data":"\r\n"}
+,{"stream_name":"stdout","time":342.097119794,"data":"\rDownloading bytes: ████████████████▎                        | 1.23GB,  571MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":342.097147303,"data":"\r\n"}
+,{"stream_name":"stdout","time":342.201764251,"data":"\rDownloading bytes: █████████████████▏                       | 1.30GB,  572MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":342.201840908,"data":"\r\n"}
+,{"stream_name":"stdout","time":342.201847168,"data":"\r\n"}
+,{"stream_name":"stdout","time":342.309680587,"data":"\rReconstructing (incomplete total...):  31%|██▍     |  956MB / 3.10GB,  355MB/s  \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":342.309710902,"data":"\r\n"}
+,{"stream_name":"stdout","time":342.519263804,"data":"\rDownloading bytes: ██████████████████▋                      | 1.41GB,  581MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":342.519293534,"data":"\r\n"}
+,{"stream_name":"stdout","time":342.519297372,"data":"\r\n"}
+,{"stream_name":"stdout","time":342.519319743,"data":"\rReconstructing (incomplete total...):  35%|██▊     | 1.09GB / 3.10GB,  372MB/s  \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":342.51932374,"data":"\r\n"}
+,{"stream_name":"stdout","time":342.625538035,"data":"\rDownloading bytes: ████████████████████▏                    | 1.53GB,  583MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":342.625572068,"data":"\r\n"}
+,{"stream_name":"stdout","time":342.731258591,"data":"\rDownloading bytes: █████████████████████                    | 1.59GB,  581MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":342.731289795,"data":"\r\n"}
+,{"stream_name":"stdout","time":342.834361227,"data":"\rDownloading bytes: █████████████████████▊                   | 1.65GB,  582MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":342.83442603,"data":"\r\n"}
+,{"stream_name":"stdout","time":342.995485727,"data":"\rDownloading bytes: ██████████████████████▋                  | 1.72GB,  591MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":342.995873064,"data":"\r\n"}
+,{"stream_name":"stdout","time":343.104212203,"data":"\rDownloading bytes: ███████████████████████▉                 | 1.81GB,  602MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":343.104251526,"data":"\r\n"}
+,{"stream_name":"stdout","time":343.104256702,"data":"\r\n"}
+,{"stream_name":"stdout","time":343.207408693,"data":"\rReconstructing (incomplete total...):  46%|███▋    | 1.43GB / 3.10GB,  388MB/s  \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":343.207441555,"data":"\r\n"}
+,{"stream_name":"stdout","time":343.310893627,"data":"\rDownloading bytes: █████████████████████████▎               | 1.91GB,  537MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":343.310929025,"data":"\r\n"}
+,{"stream_name":"stdout","time":343.310934214,"data":"\r\n"}
+,{"stream_name":"stdout","time":343.413288215,"data":"\rReconstructing (incomplete total...):  52%|████▏   | 1.63GB / 3.10GB,  452MB/s  \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":343.413320195,"data":"\r\n"}
+,{"stream_name":"stdout","time":343.515558215,"data":"\rDownloading bytes: ██████████████████████████▊              | 2.03GB,  519MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":343.515588406,"data":"\r\n"}
+,{"stream_name":"stdout","time":343.721884783,"data":"\rDownloading bytes: ███████████████████████████▋             | 2.09GB,  541MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":343.721937762,"data":"\r\n"}
+,{"stream_name":"stdout","time":343.882485095,"data":"\rDownloading bytes: █████████████████████████████▏           | 2.20GB,  559MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":343.882515786,"data":"\r\n"}
+,{"stream_name":"stdout","time":343.882538664,"data":"\r\n"}
+,{"stream_name":"stdout","time":343.990515479,"data":"\rReconstructing (incomplete total...):  59%|████▋   | 1.83GB / 3.10GB,  535MB/s  \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":343.990545177,"data":"\r\n"}
+,{"stream_name":"stdout","time":344.194871601,"data":"\rDownloading bytes: ██████████████████████████████▋          | 2.32GB,  559MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":344.194928044,"data":"\r\n"}
+,{"stream_name":"stdout","time":344.194935154,"data":"\r\n"}
+,{"stream_name":"stdout","time":344.194940258,"data":"\rReconstructing (incomplete total...):  68%|█████▍  | 2.10GB / 3.10GB,  477MB/s  \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":344.194945469,"data":"\r\n"}
+,{"stream_name":"stdout","time":344.299671105,"data":"\rDownloading bytes: ███████████████████████████████▌         | 2.39GB,  524MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":344.299724352,"data":"\r\n"}
+,{"stream_name":"stdout","time":344.403713099,"data":"\rDownloading bytes: ████████████████████████████████▍        | 2.45GB,  467MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":344.403775891,"data":"\r\n"}
+,{"stream_name":"stdout","time":344.507573354,"data":"\rDownloading bytes: █████████████████████████████████▏       | 2.51GB,  489MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":344.507606326,"data":"\r\n"}
+,{"stream_name":"stdout","time":344.730793574,"data":"\rDownloading bytes: █████████████████████████████████▉       | 2.56GB,  507MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":344.730820881,"data":"\r\n"}
+,{"stream_name":"stdout","time":344.778890213,"data":"\rDownloading bytes: ███████████████████████████████████      | 2.65GB,  514MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":344.778920923,"data":"\r\n"}
+,{"stream_name":"stdout","time":344.778926746,"data":"\r\n"}
+,{"stream_name":"stdout","time":344.88202478,"data":"\rReconstructing (incomplete total...):  76%|██████  | 2.36GB / 3.10GB,  564MB/s  \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":344.882056569,"data":"\r\n"}
+,{"stream_name":"stdout","time":344.99001987,"data":"\rDownloading bytes: ███████████████████████████████████▊     | 2.70GB,  478MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":344.990051898,"data":"\r\n"}
+,{"stream_name":"stdout","time":344.990057952,"data":"\r\n"}
+,{"stream_name":"stdout","time":345.395076997,"data":"\rReconstructing (incomplete total...):  83%|██████▌ | 2.57GB / 3.10GB,  513MB/s  \u001b[A\u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":345.395104791,"data":"\r\n"}
+,{"stream_name":"stdout","time":345.395109662,"data":"\r\n"}
+,{"stream_name":"stdout","time":348.628137352,"data":"\rReconstructing (incomplete total...): 100%|████████| 3.10GB / 3.10GB,  588MB/s  \u001b[A\u001b[A\u001b[A\rDownload complete: █████████████████████████████████████████|  866MB,  507MB/s  \r\n"}
+,{"stream_name":"stdout","time":357.804050283,"data":"\rReconstruction complete: 100%|█████████████████████| 1.00GB / 1.00GB,  536MB/s  \u001b[A\r\n"}
+,{"stream_name":"stdout","time":357.804110271,"data":"\r\n"}
+,{"stream_name":"stdout","time":357.804116266,"data":"\r\n"}
+,{"stream_name":"stdout","time":357.80411979,"data":"\r\n"}
+,{"stream_name":"stdout","time":357.804123596,"data":"\rFetching 10 files: 100%|████████████████████████| 10/10 [00:19\u003c00:00,  2.47s/it]\u001b[A\u001b[A\u001b[A\u001b[A\rFetching 10 files: 100%|████████████████████████| 10/10 [00:19\u003c00:00,  1.92s/it]\r\n"}
+,{"stream_name":"stdout","time":357.804128709,"data":"\r\n"}
+,{"stream_name":"stdout","time":357.804132013,"data":"\r\n"}
+,{"stream_name":"stdout","time":357.804135533,"data":"\rDownloading bytes: █████████████████████████████████████████| 2.70GB,  403MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":357.804140791,"data":"\r\n"}
+,{"stream_name":"stdout","time":357.804145123,"data":"\rDownload complete: █████████████████████████████████████████| 2.70GB,  403MB/s  \u001b[A\u001b[A\r\n"}
+,{"stream_name":"stdout","time":357.804149745,"data":"\r\n"}
+,{"stream_name":"stdout","time":357.804153061,"data":"\r\n"}
+,{"stream_name":"stdout","time":357.804156388,"data":"\rReconstruction complete: 100%|█████████████████████| 3.10GB / 3.10GB,  813MB/s  \u001b[A\u001b[A\u001b[A\rDownload complete: █████████████████████████████████████████|  866MB,  507MB/s  \r\n"}
+,{"stream_name":"stdout","time":357.804161375,"data":"\rReconstruction complete: 100%|█████████████████████| 1.00GB / 1.00GB,  536MB/s  \r\n"}
+,{"stream_name":"stdout","time":357.804177941,"data":"\rDownload complete: █████████████████████████████████████████| 2.70GB,  403MB/s  \r\n"}
+,{"stream_name":"stdout","time":357.804183132,"data":"\rReconstruction complete: 100%|█████████████████████| 3.10GB / 3.10GB,  813MB/s  \r\n"}
+,{"stream_name":"stdout","time":357.994636319,"data":"/tmp/fit-check\n"}
+,{"stream_name":"stdout","time":366.958086243,"data":"llama         full sdpa  fp16 s=64    1,545,780 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":367.31394178,"data":"llama         lora sdpa  fp16 s=64    1,221,684 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":367.364551089,"data":"mistral       full sdpa  fp16 s=64    1,644,084 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":367.415498546,"data":"mistral       lora sdpa  fp16 s=64    1,319,988 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":367.415528181,"data":"qwen2-sliding full sdpa  fp16 s=64    1,611,316 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":367.465904224,"data":"qwen2-sliding lora sdpa  fp16 s=64    1,287,220 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":367.568282291,"data":"gemma4-e2b    full sdpa  fp16 s=64    6,788,516 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":367.671108279,"data":"gemma4-e2b    lora sdpa  fp16 s=64    4,264,068 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":367.7724219,"data":"gemma4-31b    full sdpa  fp16 s=64   16,094,564 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":367.823069953,"data":"gemma4-31b    lora sdpa  fp16 s=64   11,632,740 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":367.873818942,"data":"[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.\r\n"}
+,{"stream_name":"stdout","time":368.178180993,"data":"[transformers] `chunk_gated_delta_rule` is falling back to its reference PyTorch implementation because `flash-linear-attention` is not installed. This is correct but much slower; install `flash-linear-attention` for the optimized kernel.\r\n"}
+,{"stream_name":"stdout","time":368.331243312,"data":"qwen3.5       full sdpa  fp16 s=96   19,602,532 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":368.432408971,"data":"qwen3.5       lora sdpa  fp16 s=96    9,663,252 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":368.432437755,"data":"all cases match exactly\r\n"}
+,{"stream_name":"stdout","time":377.981671661,"data":"llama         full sdpa  bf16 s=48    1,159,300 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":378.032580878,"data":"llama         full eager bf16 s=48    1,523,332 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":378.032617195,"data":"llama         full sdpa  fp32 s=48    1,946,500 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":378.335881908,"data":"llama         lora sdpa  bf16 s=48      916,228 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":378.386306557,"data":"llama         lora eager bf16 s=48    1,280,260 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":378.437536389,"data":"llama         lora sdpa  fp32 s=48    1,485,316 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":378.437556246,"data":"mistral       full sdpa  bf16 s=48    1,223,812 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":378.487909599,"data":"mistral       full eager bf16 s=48    1,523,332 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":378.487931798,"data":"mistral       full sdpa  fp32 s=48    2,075,524 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":378.538929586,"data":"mistral       lora sdpa  bf16 s=48      980,740 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":378.58960933,"data":"mistral       lora eager bf16 s=48    1,280,260 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":378.589634024,"data":"mistral       lora sdpa  fp32 s=48    1,614,340 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":378.640455619,"data":"qwen2-sliding full sdpa  bf16 s=48    1,202,308 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":378.640479701,"data":"qwen2-sliding full eager bf16 s=48    1,523,332 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":378.691627723,"data":"qwen2-sliding full sdpa  fp32 s=48    2,032,516 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":378.742045629,"data":"qwen2-sliding lora sdpa  bf16 s=48      959,236 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":378.742068134,"data":"qwen2-sliding lora eager bf16 s=48    1,280,260 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":378.792776541,"data":"qwen2-sliding lora sdpa  fp32 s=48    1,571,332 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":378.894201442,"data":"gemma4-e2b    full sdpa  bf16 s=40    4,227,876 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":378.995917925,"data":"gemma4-e2b    full eager bf16 s=40    4,999,716 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":379.046210666,"data":"gemma4-e2b    full sdpa  fp32 s=40    5,936,644 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":379.147750755,"data":"gemma4-e2b    lora sdpa  bf16 s=40    2,649,988 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":379.249133648,"data":"gemma4-e2b    lora eager bf16 s=40    3,421,828 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":379.351445977,"data":"gemma4-e2b    lora sdpa  fp32 s=40    3,959,684 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":379.402102856,"data":"gemma4-31b    full sdpa  bf16 s=40   10,048,004 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":379.452852826,"data":"gemma4-31b    full eager bf16 s=40   10,928,644 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":379.503779591,"data":"gemma4-31b    full sdpa  fp32 s=40   13,803,524 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":379.605706988,"data":"gemma4-31b    lora sdpa  bf16 s=40    7,259,268 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":379.706966734,"data":"gemma4-31b    lora eager bf16 s=40    8,139,908 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":380.062483686,"data":"gemma4-31b    lora sdpa  fp32 s=40   10,848,644 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":380.062552584,"data":"[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.\r\n"}
+,{"stream_name":"stdout","time":380.062570774,"data":"[transformers] `chunk_gated_delta_rule` is falling back to its reference PyTorch implementation because `flash-linear-attention` is not installed. This is correct but much slower; install `flash-linear-attention` for the optimized kernel.\r\n"}
+,{"stream_name":"stdout","time":380.164641705,"data":"qwen3.5       full sdpa  bf16 s=100  20,036,708 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":380.266097394,"data":"qwen3.5       full eager bf16 s=100  20,990,308 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":380.367705704,"data":"qwen3.5       full sdpa  fp32 s=100  24,229,924 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":380.418319377,"data":"qwen3.5       lora sdpa  bf16 s=100   9,925,748 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":380.519767116,"data":"qwen3.5       lora eager bf16 s=100  10,879,348 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":380.621355471,"data":"qwen3.5       lora sdpa  fp32 s=100  12,189,556 bytes  ok\r\n"}
+,{"stream_name":"stdout","time":380.621395158,"data":"all cases match exactly\r\n"}
+,{"stream_name":"stdout","time":381.981716115,"data":"[10/55] deepspeed --num_gpus 2 --master_port 29509 /tmp/fit-check/calibrate/run_one.py --model Qwen/Qwen2.5-0.5B --revision 060db6499f32faf8b98477b0a26969ef7d8b9987 --zero 2 --seq-len 512 --micro-batch 1 --attn sdpa --checkpointing --steps 8 --out-dir /kaggle/working/runs/0.5B-z2-s512-mb1-sdpa-ckpt-g2\r\n"}
+,{"stream_name":"stdout","time":412.184500975,"data":"    ok in 30 s\r\n"}
+,{"stream_name":"stdout","time":412.184535627,"data":"[11/55] deepspeed --num_gpus 2 --master_port 29510 /tmp/fit-check/calibrate/run_one.py --model Qwen/Qwen2.5-0.5B --revision 060db6499f32faf8b98477b0a26969ef7d8b9987 --zero 2 --seq-len 1024 --micro-batch 1 --attn sdpa --checkpointing --steps 8 --out-dir /kaggle/working/runs/0.5B-z2-s1024-mb1-sdpa-ckpt-g2\r\n"}
+,{"stream_name":"stdout","time":441.364442552,"data":"    ok in 29 s\r\n"}
+,{"stream_name":"stdout","time":441.364477329,"data":"[13/55] deepspeed --num_gpus 2 --master_port 29512 /tmp/fit-check/calibrate/run_one.py --model Qwen/Qwen2.5-0.5B --revision 060db6499f32faf8b98477b0a26969ef7d8b9987 --zero 2 --seq-len 2048 --micro-batch 1 --attn sdpa --checkpointing --steps 8 --out-dir /kaggle/working/runs/0.5B-z2-s2048-mb1-sdpa-ckpt-g2\r\n"}
+,{"stream_name":"stdout","time":473.57342033,"data":"    ok in 32 s\r\n"}
+,{"stream_name":"stdout","time":473.573460226,"data":"[15/55] deepspeed --num_gpus 2 --master_port 29514 /tmp/fit-check/calibrate/run_one.py --model Qwen/Qwen2.5-0.5B --revision 060db6499f32faf8b98477b0a26969ef7d8b9987 --zero 2 --seq-len 4096 --micro-batch 1 --attn sdpa --checkpointing --steps 8 --out-dir /kaggle/working/runs/0.5B-z2-s4096-mb1-sdpa-ckpt-g2\r\n"}
+,{"stream_name":"stdout","time":510.955811522,"data":"    ok in 37 s\r\n"}
+,{"stream_name":"stdout","time":510.955851125,"data":"[17/55] deepspeed --num_gpus 2 --master_port 29516 /tmp/fit-check/calibrate/run_one.py --model Qwen/Qwen2.5-0.5B --revision 060db6499f32faf8b98477b0a26969ef7d8b9987 --zero 0 --lora-rank 16 --seq-len 1024 --micro-batch 1 --attn sdpa --checkpointing --steps 8 --out-dir /kaggle/working/runs/0.5B-z0-lora16-s1024-mb1-sdpa-ckpt-g2\r\n"}
+,{"stream_name":"stdout","time":539.412325989,"data":"    ok in 28 s\r\n"}
+,{"stream_name":"stdout","time":539.41235966,"data":"[19/55] deepspeed --num_gpus 2 --master_port 29518 /tmp/fit-check/calibrate/run_one.py --model Qwen/Qwen2.5-0.5B --revision 060db6499f32faf8b98477b0a26969ef7d8b9987 --zero 0 --lora-rank 16 --seq-len 2048 --micro-batch 1 --attn sdpa --checkpointing --steps 8 --out-dir /kaggle/working/runs/0.5B-z0-lora16-s2048-mb1-sdpa-ckpt-g2\r\n"}
+,{"stream_name":"stdout","time":569.049270464,"data":"    ok in 30 s\r\n"}
+,{"stream_name":"stdout","time":569.049304401,"data":"[21/55] deepspeed --num_gpus 2 --master_port 29520 /tmp/fit-check/calibrate/run_one.py --model Qwen/Qwen2.5-0.5B --revision 060db6499f32faf8b98477b0a26969ef7d8b9987 --zero 2 --lora-rank 16 --seq-len 1024 --micro-batch 1 --attn sdpa --checkpointing --steps 8 --out-dir /kaggle/working/runs/0.5B-z2-lora16-s1024-mb1-sdpa-ckpt-g2\r\n"}
+,{"stream_name":"stdout","time":597.455112753,"data":"    ok in 28 s\r\n"}
+,{"stream_name":"stdout","time":597.455149435,"data":"[23/55] deepspeed --num_gpus 2 --master_port 29522 /tmp/fit-check/calibrate/run_one.py --model Qwen/Qwen2.5-0.5B --revision 060db6499f32faf8b98477b0a26969ef7d8b9987 --zero 2 --lora-rank 16 --seq-len 2048 --micro-batch 1 --attn sdpa --checkpointing --steps 8 --out-dir /kaggle/working/runs/0.5B-z2-lora16-s2048-mb1-sdpa-ckpt-g2\r\n"}
+,{"stream_name":"stdout","time":628.028876822,"data":"    ok in 31 s\r\n"}
+,{"stream_name":"stdout","time":628.02891343,"data":"[27/55] deepspeed --num_gpus 2 --master_port 29526 /tmp/fit-check/calibrate/run_one.py --model Qwen/Qwen2.5-0.5B --revision 060db6499f32faf8b98477b0a26969ef7d8b9987 --zero 2 --seq-len 1024 --micro-batch 2 --attn sdpa --checkpointing --steps 8 --out-dir /kaggle/working/runs/0.5B-z2-s1024-mb2-sdpa-ckpt-g2\r\n"}
+,{"stream_name":"stdout","time":660.630883645,"data":"    ok in 33 s\r\n"}
+,{"stream_name":"stdout","time":660.630914393,"data":"[33/55] deepspeed --num_gpus 2 --master_port 29532 /tmp/fit-check/calibrate/run_one.py --model Qwen/Qwen2.5-1.5B --revision 8faed761d45a263340a0528343f099c05c9a4323 --zero 0 --lora-rank 16 --seq-len 1024 --micro-batch 1 --attn sdpa --checkpointing --steps 8 --out-dir /kaggle/working/runs/1.5B-z0-lora16-s1024-mb1-sdpa-ckpt-g2\r\n"}
+,{"stream_name":"stdout","time":694.192660386,"data":"    ok in 34 s\r\n"}
+,{"stream_name":"stdout","time":694.19272633,"data":"[35/55] deepspeed --num_gpus 2 --master_port 29534 /tmp/fit-check/calibrate/run_one.py --model Qwen/Qwen2.5-1.5B --revision 8faed761d45a263340a0528343f099c05c9a4323 --zero 0 --lora-rank 16 --seq-len 2048 --micro-batch 1 --attn sdpa --checkpointing --steps 8 --out-dir /kaggle/working/runs/1.5B-z0-lora16-s2048-mb1-sdpa-ckpt-g2\r\n"}
+,{"stream_name":"stdout","time":732.621727163,"data":"    ok in 38 s\r\n"}
+,{"stream_name":"stdout","time":732.621769827,"data":"[37/55] deepspeed --num_gpus 2 --master_port 29536 /tmp/fit-check/calibrate/run_one.py --model Qwen/Qwen2.5-1.5B --revision 8faed761d45a263340a0528343f099c05c9a4323 --zero 2 --lora-rank 16 --seq-len 1024 --micro-batch 1 --attn sdpa --checkpointing --steps 8 --out-dir /kaggle/working/runs/1.5B-z2-lora16-s1024-mb1-sdpa-ckpt-g2\r\n"}
+,{"stream_name":"stdout","time":765.661117793,"data":"    ok in 33 s\r\n"}
+,{"stream_name":"stdout","time":765.661152477,"data":"[39/55] deepspeed --num_gpus 2 --master_port 29538 /tmp/fit-check/calibrate/run_one.py --model Qwen/Qwen2.5-1.5B --revision 8faed761d45a263340a0528343f099c05c9a4323 --zero 2 --lora-rank 16 --seq-len 2048 --micro-batch 1 --attn sdpa --checkpointing --steps 8 --out-dir /kaggle/working/runs/1.5B-z2-lora16-s2048-mb1-sdpa-ckpt-g2\r\n"}
+,{"stream_name":"stdout","time":804.056526065,"data":"    ok in 38 s\r\n"}
+,{"stream_name":"stdout","time":804.176561047,"data":"13 runs: {'ok': 13}\n"}
+,{"stream_name":"stdout","time":804.176591103,"data":"torch used: ['2.14.1+cu126']\n"}
+,{"stream_name":"stdout","time":804.176597566,"data":"under 4 applied steps: []\n"}
+,{"stream_name":"stdout","time":804.176607192,"data":"saved tensors on cuda: torch 2.14.1+cu126, failed cases: []\n"}
+,{"stream_name":"stdout","time":804.176611665,"data":"saved tensors on cpu: torch 2.14.1+cu126, failed cases: []\n"}
+,{"stream_name":"stderr","time":806.913375001,"data":"/usr/local/lib/python3.13/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":806.913429854,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":807.110412288,"data":"/usr/local/lib/python3.13/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":807.110439801,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":807.944246515,"data":"[NbConvertApp] Converting notebook __notebook__.ipynb to notebook\n"}
+,{"stream_name":"stderr","time":808.05047559,"data":"[NbConvertApp] Writing 46437 bytes to __notebook__.ipynb\n"}
+,{"stream_name":"stderr","time":810.576070842,"data":"[NbConvertApp] Converting notebook __notebook__.ipynb to html\n"}
+,{"stream_name":"stderr","time":811.131789452,"data":"[NbConvertApp] Writing 324814 bytes to __results__.html\n"}
+]
