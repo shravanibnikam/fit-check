@@ -26,6 +26,7 @@ import json
 import sys
 
 import torch
+import torch.nn.functional as F
 import transformers.integrations.sdpa_attention as hf_sdpa
 from transformers import (
     AutoModelForCausalLM,
@@ -153,7 +154,7 @@ BATCH = 2
 DTYPES = {"bf16": torch.bfloat16, "fp16": torch.float16, "fp32": torch.float32}
 
 
-def measure(config, attn, lora, dtype, device, s):
+def measure(config, attn, lora, dtype, device, s, keep=None, batch=BATCH):
     """Saved bytes per bucket: shared, embed, L0..Ln, head, held."""
     torch.manual_seed(0)
     lm = AutoModelForCausalLM.from_config(config, attn_implementation=attn)
@@ -187,14 +188,23 @@ def measure(config, attn, lora, dtype, device, s):
         kept.append(x)  # keep storages alive so their addresses stay unique
         return x
 
-    ids = torch.randint(0, config.vocab_size, (BATCH, s), device=device)
+    ids = torch.randint(0, config.vocab_size, (batch, s), device=device)
     states.add(ids.untyped_storage().data_ptr())
     with torch.autograd.graph.saved_tensors_hooks(pack, lambda x: x):
-        out = lm(input_ids=ids, labels=ids)
+        if keep:
+            # Answer-only loss: the snippet from docs/memory-model.md.
+            out = lm(input_ids=ids, logits_to_keep=keep + 1)
+            logits = out.logits[:, :-1].float()
+            loss = F.cross_entropy(
+                logits.reshape(-1, config.vocab_size), ids[:, -keep:].reshape(-1)
+            )
+        else:
+            out = lm(input_ids=ids, labels=ids)
+            loss = out.loss
 
     # Count only storages the backward graph can still reach: tensors saved by
     # branches the loss does not depend on are freed with those branches.
-    live, stack, seen = set(), [out.loss.grad_fn], set()
+    live, stack, seen = set(), [loss.grad_fn], set()
     while stack:
         fn = stack.pop()
         if fn is None or fn in seen:
@@ -216,22 +226,29 @@ def measure(config, attn, lora, dtype, device, s):
         if ptr in live and ptr not in states:
             buckets[bucket] = buckets.get(bucket, 0) + nbytes
     logits = out.logits.untyped_storage()
-    if logits.data_ptr() not in first:
+    # The caller drops the logits after `.float()`, so nothing is held.
+    if not keep and logits.data_ptr() not in first:
         buckets["held"] = logits.nbytes()
     return buckets
 
 
-def predict(name, config, attn, lora, s, dtype, device):
+def predict(name, config, attn, lora, s, dtype, device, keep=None, batch=BATCH):
     cfg = config.to_dict()
     family = model.FAMILIES[cfg["model_type"]]
     setup = estimate.Setup(
-        lora_rank=lora, micro_batch=BATCH, seq_len=s, attn=attn, dtype=dtype
+        lora_rank=lora,
+        micro_batch=batch,
+        seq_len=s,
+        attn=attn,
+        dtype=dtype,
+        loss_tokens=keep,
     )
     p = estimate.DTYPE_BYTES[dtype]
     parts = activations.FAMILIES[family](cfg, setup, p)
     buckets = {"shared": parts.shared, "embed": parts.embed, "head": parts.head}
     buckets.update({f"L{i}": n for i, n in enumerate(parts.layers)})
     buckets["held"] = parts.held
+    assert not keep or parts.held == 0
     if attn == "sdpa" and device == "cpu":
         # PyTorch's CPU flash kernel keeps no philox seed and offset, which the
         # formula counts for CUDA's memory-efficient kernel: 16 bytes per call.
@@ -247,8 +264,18 @@ def predict(name, config, attn, lora, s, dtype, device):
         q = config.num_attention_heads * config.head_dim
         for i, kind in enumerate(config.layer_types):
             if kind == FULL:
-                buckets[f"L{i}"] += BATCH * s * p * q
+                buckets[f"L{i}"] += batch * s * p * q
     return buckets
+
+
+# (config, last `keep` tokens or None for HF's loss, batch). With keep, batch 1
+# makes the loss targets a view of the input ids and batch 2 a copy.
+RUNS = [(name, None, BATCH) for name in CONFIGS] + [
+    ("llama", 7, 2),
+    ("llama", 7, 1),
+    ("qwen3.5", 9, 2),
+    ("gemma4-e2b", 7, 2),  # final logit softcapping keeps the tanh output
+]
 
 
 def main():
@@ -267,23 +294,30 @@ def main():
         )
     seq = SEQ if args.device == "cpu" else CUDA_SEQ
     cases = []
-    for name, config in CONFIGS.items():
+    for name, keep, batch in RUNS:
+        config = CONFIGS[name]
         for lora in (None, 8):
             for attn, dtype in CASES[args.device]:
                 s = seq[name]
                 kind = "lora" if lora else "full"
                 label = f"{name:13} {kind:4} {attn:5} {dtype:4} s={s:<4}"
+                if keep:
+                    label += f" loss-tokens={keep} b={batch}"
                 case = {"config": name, "lora_rank": lora, "attn": attn}
-                case.update(dtype=dtype, seq_len=s, batch=BATCH)
+                case.update(dtype=dtype, seq_len=s, batch=batch, loss_tokens=keep)
                 try:
-                    measured = measure(config, attn, lora, dtype, args.device, s)
+                    measured = measure(
+                        config, attn, lora, dtype, args.device, s, keep, batch
+                    )
                 except Exception as e:  # noqa: BLE001  a crash is a failed case
                     print(f"{label} ERROR {type(e).__name__}: {e}")
                     cases.append(
                         {**case, "ok": False, "error": f"{type(e).__name__}: {e}"}
                     )
                     continue
-                predicted = predict(name, config, attn, lora, s, dtype, args.device)
+                predicted = predict(
+                    name, config, attn, lora, s, dtype, args.device, keep, batch
+                )
                 keys = sorted(set(measured) | set(predicted), key=_order)
                 bad = [k for k in keys if measured.get(k, 0) != predicted.get(k, 0)]
                 total = sum(measured.values())

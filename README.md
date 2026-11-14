@@ -37,7 +37,7 @@ Fits in 15 GiB: yes
 Not yet calibrated against measured runs.
 ```
 
-Options: `--gpus`, `--gpu-mem` (GiB per GPU), `--zero {0,1,2,3}`, `--offload-optimizer`, `--offload-param`, `--lora-rank R`, `--dtype {bf16,fp16,fp32}`, `--seq-len` (default 2048), `--micro-batch` (default 1), `--grad-accum` (default 1), `--attn {sdpa,eager}`, `--checkpointing`, `--revision`. The model can be a Hub id or a local folder. For gated models such as Llama, accept the license on the Hub and set `HF_TOKEN`.
+Options: `--gpus`, `--gpu-mem` (GiB per GPU), `--zero {0,1,2,3}`, `--offload-optimizer`, `--offload-param`, `--lora-rank R`, `--dtype {bf16,fp16,fp32}`, `--seq-len` (default 2048), `--micro-batch` (default 1), `--grad-accum` (default 1), `--attn {sdpa,eager}`, `--checkpointing`, `--loss-tokens N` (loss on the last N tokens only, via `logits_to_keep=N + 1`; default is HF's loss over every token), `--revision`. The model can be a Hub id or a local folder. For gated models such as Llama, accept the license on the Hub and set `HF_TOKEN`.
 
 The formulas, their sources and the known gaps are in [docs/memory-model.md](docs/memory-model.md).
 

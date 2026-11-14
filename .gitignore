@@ -8,3 +8,4 @@ dist/
 
 # Allocator snapshots: large, kept in the GitHub release instead
 calibrate/results/*-traces/
+.claude/worktrees/

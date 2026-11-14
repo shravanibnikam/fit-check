@@ -62,12 +62,31 @@ def _sizes(setup):
     return b, s, b * s, setup.lora_rank is None, setup.lora_rank or 0
 
 
-def _head(t, p, vocab, final_norm, full, h, softcap=False):
-    """Final norm, logits and loss (LlamaForCausalLM.forward, ForCausalLMLoss)."""
+def _head(t, p, vocab, final_norm, full, h, softcap=False, b=1, keep=None):
+    """Final norm, logits and loss (LlamaForCausalLM.forward, ForCausalLMLoss).
+
+    `keep` is Setup.loss_tokens, the answer-only snippet in docs/memory-model.md.
+    """
     saved = final_norm
     if full:
-        # Norm output, kept by lm_head for its weight gradient.
-        saved += t * p * h
+        # Norm output, kept by lm_head for its weight gradient. With `keep`,
+        # lm_head reads hidden_states[:, -(keep + 1):]. For b = 1 that slice is
+        # contiguous, a view that keeps the whole norm output alive. For b > 1
+        # linear flattens it with a copy, so only keep + 1 positions are kept.
+        rows = b * (keep + 1) if keep and b > 1 else t
+        saved += rows * p * h
+    if keep:
+        # lm_head runs on keep + 1 positions and the model returns those logits.
+        pos = b * (keep + 1)
+        if softcap:
+            saved += pos * p * vocab
+        # `.logits[:, :-1]` is a view and `.float()` keeps nothing; log-softmax
+        # keeps its fp32 output on `keep` positions, nll_loss the targets and
+        # total_weight. `ids[:, -n:].reshape(-1)` copies for b > 1 and is a view
+        # of the input ids for b = 1. The caller drops the logits after `.float()`.
+        n = b * keep
+        saved += n * F32 * vocab + (n * I64 if b > 1 else 0) + F32
+        return saved, 0, 2 * n * F32 * vocab
     if softcap:
         # Gemma's tanh(logits / cap) * cap keeps the tanh output.
         saved += t * p * vocab
@@ -177,7 +196,9 @@ def _llama(cfg, setup, p):
         n += t * p * inter * (4 if full else 3)
         layers.append(n)
     final_norm = _llama_norm(t, h, True, full, p)
-    head = _head(t, p, cfg["vocab_size"], final_norm, full, h)
+    head = _head(
+        t, p, cfg["vocab_size"], final_norm, full, h, b=b, keep=setup.loss_tokens
+    )
     # cos and sin, batch 1 since position_ids are shared across the batch.
     return Parts(2 * p * s * d, 0, layers, t * p * h, *head)
 
@@ -299,7 +320,9 @@ def _gemma4(cfg, setup, p):
                 layers[0] -= t * F32 * h
     softcap = cfg.get("final_logit_softcapping") is not None
     final_norm = _gemma_norm(t, 1, h, full, p)
-    head = _head(t, p, cfg["vocab_size"], final_norm, full, h, softcap)
+    head = _head(
+        t, p, cfg["vocab_size"], final_norm, full, h, softcap, b, setup.loss_tokens
+    )
     return Parts(shared, embed, layers, t * p * h, *head)
 
 
@@ -407,7 +430,9 @@ def _qwen3_5(cfg, setup, p):
             n += t * p * inter * (4 if full else 3)  # SwiGLU, as Llama
         layers.append(n)
     final_norm = _qwen_norm(t, 1, h, True, full)
-    head = _head(t, p, cfg["vocab_size"], final_norm, full, h)
+    head = _head(
+        t, p, cfg["vocab_size"], final_norm, full, h, b=b, keep=setup.loss_tokens
+    )
     # Multimodal RoPE builds cos and sin per batch row, for the rotary part only.
     return Parts(2 * p * t * rot, 0, layers, t * p * h, *head)
 
