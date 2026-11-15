@@ -95,8 +95,8 @@ def recommend_grid() -> list[tuple[str, Setup]]:
     """`fitcheck recommend --gpus 2 --gpu-mem 14.56 --dtype fp16` picks, and the
     setup ranked just before each pick, which it rejects for GPU memory.
     tests/test_sweep.py checks against the Hub that these are still the picks.
-    The accumulation-4 pick measured 1 GiB over its prediction, so gradient
-    accumulation is now reported as not modeled and that goal gets no pick."""
+    The accumulation-4 pick measured 1 GiB over its prediction, which an
+    allocator trace traced to ZeRO-1's reduce bucket (Estimate.bucket)."""
     fp16 = {"num_gpus": 2, "dtype": "fp16"}
     return [
         # Full fine-tune at 4096: ZeRO-1 with checkpointing is picked; ZeRO-0
