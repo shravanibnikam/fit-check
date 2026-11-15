@@ -20,3 +20,15 @@ jobs:
       - run: uv run ruff check
       - run: uv run ruff format --check
       - run: uv run pytest
+
+  # Loads every generated ds_config.json with DeepSpeed's own parser
+  # (tests/test_recommend.py). DeepSpeed and CPU-only torch are dev-only.
+  deepspeed-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+      - run: uv sync --locked --group deepspeed
+      - run: uv run --group deepspeed pytest

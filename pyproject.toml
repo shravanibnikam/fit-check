@@ -3,6 +3,8 @@ name = "fitcheck"
 version = "0.1.0"
 description = "Predict whether a Hugging Face LLM fits on your GPUs, and where the memory goes."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 # Must stay empty: the package also runs in the browser via Pyodide.
 dependencies = []
@@ -16,6 +18,8 @@ build-backend = "uv_build"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# calibrate/sweep.py is tested offline; run_one.py needs a GPU and is not imported.
+pythonpath = ["calibrate"]
 # Network tests are skipped by default. Run them with: uv run pytest -m network
 addopts = "-m 'not network'"
 markers = ["network: talks to the Hugging Face Hub"]
@@ -30,3 +34,22 @@ dev = [
     "pytest>=9.1.1",
     "ruff>=0.16.10",
 ]
+# For tests/test_recommend.py only: loads generated configs with DeepSpeed's
+# own parser. Pinned to the version the calibration runs used.
+deepspeed = [
+    "deepspeed==0.19.9",
+    "torch==2.14.1",
+]
+
+[tool.uv.extra-build-dependencies]
+# DeepSpeed ships only an sdist, and its setup.py imports torch.
+deepspeed = [{ requirement = "torch", match-runtime = true }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+# CPU wheels on Linux, so CI doesn't download the CUDA libraries.
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]

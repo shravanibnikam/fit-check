@@ -1,0 +1,71 @@
+{
+  "cuda_context_bytes": 254672896,
+  "allocated_error": {
+    "median_abs_error": 0.0083,
+    "max_abs_error": 0.0343,
+    "within_target": 33,
+    "runs": 35,
+    "per_model": {
+      "Qwen/Qwen2.5-0.5B": {
+        "median_abs_error": 0.0084,
+        "max_abs_error": 0.0343,
+        "within_target": 24,
+        "runs": 26
+      },
+      "Qwen/Qwen2.5-1.5B": {
+        "median_abs_error": 0.0081,
+        "max_abs_error": 0.0092,
+        "within_target": 9,
+        "runs": 9
+      }
+    }
+  },
+  "provenance": {
+    "fitted": "2026-11-14",
+    "results_file": "results.jsonl",
+    "results_sha256": "b19b62640c11c9187f99d26d3decac5a4971979b2ee5932b7cc0238afc6c09c2",
+    "runs": 55,
+    "valid_runs": 35,
+    "models": [
+      "Qwen/Qwen2.5-0.5B",
+      "Qwen/Qwen2.5-1.5B"
+    ],
+    "measured": [
+      "2026-11-01T06:57:03+00:00",
+      "2026-11-14T07:58:45+00:00"
+    ],
+    "gpu": [
+      "Tesla T4"
+    ],
+    "driver": [
+      "580.178.04"
+    ],
+    "torch": [
+      "2.14.1+cu126"
+    ],
+    "cuda": [
+      "12.6"
+    ],
+    "deepspeed": [
+      "0.19.9"
+    ],
+    "transformers": [
+      "5.19.0"
+    ],
+    "peft": [
+      "0.21.2"
+    ],
+    "fitcheck_commit": [
+      "0f471e174274495be24428fc08595af26e438f47",
+      "f19c97fdc31a00c4aa22cd026362ddef800f8a6d"
+    ],
+    "cuda_check": {
+      "file": "saved_tensors_cuda.json",
+      "sha256": "1fb9646c806dce5a8616d993e2659685a7910e43006f62aea92582aa109df64d",
+      "device": "cuda",
+      "gpu": "Tesla T4",
+      "torch": "2.14.1+cu126",
+      "all_match": true
+    }
+  }
+}

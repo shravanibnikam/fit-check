@@ -7,6 +7,7 @@ estimate, just no activation estimate. `unmodeled` says in plain words what the
 estimate leaves out, so the CLI never prints a confident verdict over a gap.
 """
 
+import math
 import re
 from dataclasses import dataclass, field
 
@@ -51,6 +52,11 @@ class Model:
     lora_shapes: tuple[tuple[int, int], ...] = ()  # (in, out) of each LoRA target
     lora_missing: dict = field(default_factory=dict)  # target -> layers without it
     unmodeled: tuple[str, ...] = ()  # what the estimate leaves out, in plain words
+    # For DeepSpeed's buffers: the largest tensor and the input embedding, in
+    # elements, and whether the output head reuses the embedding's weight.
+    largest_param: int = 0
+    embedding_params: int = 0
+    tied_embeddings: bool = False
 
 
 def from_config(name: str, config: dict, tensors: dict[str, dict]) -> Model:
@@ -106,6 +112,14 @@ def from_config(name: str, config: dict, tensors: dict[str, dict]) -> Model:
         ),
         lora_missing={t: layers for t, layers in missing.items() if layers},
         unmodeled=_unmodeled(config, cfg, family, experts),
+        largest_param=max((math.prod(v["shape"]) for v in loaded.values()), default=0),
+        embedding_params=sum(
+            math.prod(v["shape"])
+            for k, v in loaded.items()
+            if k.endswith("embed_tokens.weight")
+        ),
+        # A tied head has no lm_head tensor of its own in the checkpoint.
+        tied_embeddings=not any(k.endswith("lm_head.weight") for k in loaded),
     )
 
 
@@ -145,6 +159,11 @@ def _is_loaded(name: str, cfg: dict) -> bool:
     # Qwen3.5's multi-token-prediction head, never loaded for training
     # (_keys_to_ignore_on_load_unexpected in modeling_qwen3_5.py).
     if name.startswith("mtp."):
+        return False
+    # Qwen3.5's vision tower. AutoModelForCausalLM builds Qwen3_5ForCausalLM,
+    # the text model alone, which skips these weights
+    # (_keys_to_ignore_on_load_unexpected in modeling_qwen3_5.py).
+    if name.startswith("model.visual."):
         return False
     # Gemma 4 layers that reuse an earlier layer's K/V have no K/V weights, but
     # checkpoints such as gemma-4-E2B still ship them (Gemma4TextModel.__init__).
