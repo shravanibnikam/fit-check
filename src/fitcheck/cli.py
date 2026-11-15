@@ -69,12 +69,12 @@ def main(argv: list[str] | None = None) -> None:
     if est.peak_at == "backward":
         act, logits = est.activations or 0, est.logits or 0
         held = est.backward - est.weights - est.optimizer - est.buffers
-        held -= est.gathered + act + logits
+        held -= est.gathered + est.bucket + act + logits
         rows = [
             ("weights", est.weights),
             ("gradients", held),
             ("optimizer", est.optimizer),
-            ("DeepSpeed buffers", est.buffers + est.gathered),
+            ("DeepSpeed buffers", est.buffers + est.gathered + est.bucket),
             ("activations", est.activations),
             ("logits and loss", est.logits),
         ]
