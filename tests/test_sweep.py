@@ -132,3 +132,9 @@ def test_recommend_grid_matches_what_recommend_picks(monkeypatch):
             before = opts[opts.index(pick) - 1]
             assert before.setup == runs[i + 1][1]
             assert (before.fits, before.reason) == ("no", "GPU memory")
+
+
+def test_trace_is_passed_through():
+    size, s = sweep.recommend_grid()[2]
+    assert "--trace" in sweep.command(size, s, "/out", 29600, trace=True)
+    assert "--trace" not in sweep.command(size, s, "/out", 29600)
