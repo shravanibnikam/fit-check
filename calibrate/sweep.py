@@ -8,7 +8,8 @@ Each run is one launch of calibrate/run_one.py through the DeepSpeed launcher.
 A run still going after TIMEOUT_S is killed with all its ranks. Runs already in
 results.jsonl are skipped, so the sweep resumes after a restart. --only runs just
 the named runs (the notebook's smoke mode), and --dry-run prints every command
-without running anything.
+without running anything. --trace passes run_one.py's --trace on, for an
+allocator history per rank.
 
 --grid recommend runs the Phase 4 check instead: what `fitcheck recommend`
 picks for a few goals on 2x T4, and the cheaper setup it rejected, to see that
@@ -94,8 +95,8 @@ def recommend_grid() -> list[tuple[str, Setup]]:
     """`fitcheck recommend --gpus 2 --gpu-mem 14.56 --dtype fp16` picks, and the
     setup ranked just before each pick, which it rejects for GPU memory.
     tests/test_sweep.py checks against the Hub that these are still the picks.
-    The accumulation-4 pick measured 1 GiB over its prediction, so gradient
-    accumulation is now reported as not modeled and that goal gets no pick."""
+    The accumulation-4 pick measured 1 GiB over its prediction, which an
+    allocator trace traced to ZeRO-1's reduce bucket (Estimate.bucket)."""
     fp16 = {"num_gpus": 2, "dtype": "fp16"}
     return [
         # Full fine-tune at 4096: ZeRO-1 with checkpointing is picked; ZeRO-0
@@ -125,7 +126,9 @@ def run_id(size: str, s: Setup) -> str:
     return "-".join(parts)
 
 
-def command(size: str, s: Setup, out_dir: str, port: int) -> list[str]:
+def command(
+    size: str, s: Setup, out_dir: str, port: int, trace: bool = False
+) -> list[str]:
     model, revision = MODELS[size]
     cmd = ["deepspeed", "--num_gpus", str(s.num_gpus), "--master_port", str(port)]
     cmd += [RUN_ONE, "--model", model, "--revision", revision]
@@ -136,6 +139,7 @@ def command(size: str, s: Setup, out_dir: str, port: int) -> list[str]:
     cmd += ["--seq-len", str(s.seq_len), "--micro-batch", str(s.micro_batch)]
     cmd += ["--attn", s.attn] + ["--checkpointing"] * s.checkpointing
     cmd += ["--grad-accum", str(s.grad_accum)] * (s.grad_accum > 1)
+    cmd += ["--trace"] * trace
     return cmd + ["--steps", str(STEPS), "--out-dir", out_dir]
 
 
@@ -216,6 +220,9 @@ def main():
         choices=["calibration", "recommend"],
         help="the Phase 3 sweep (default) or the Phase 4 recommend check",
     )
+    p.add_argument(
+        "--trace", action="store_true", help="record each rank's allocator history"
+    )
     args = p.parse_args()
 
     done = set()
@@ -233,7 +240,7 @@ def main():
         out_dir = os.path.join(args.work_dir, rid)
         # A fresh port per run, so a socket left over from a killed run can't
         # block the next rendezvous.
-        cmd = command(size, setup, out_dir, 29500 + i)
+        cmd = command(size, setup, out_dir, 29500 + i, trace=args.trace)
         print(f"[{i + 1}/{len(runs)}] {shlex.join(cmd)}", flush=True)
         if args.dry_run:
             continue

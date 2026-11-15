@@ -123,12 +123,14 @@ def test_recommend_grid_matches_what_recommend_picks(monkeypatch):
         model = from_config(name, *hub.load(name, revision=revision))
         opts = recommend.options(model, s, sweep.T4_BYTES)
         pick = recommend.best(opts)
-        if s.grad_accum > 1:
-            # Picked when measured; after it measured 1 GiB over, unknown.
-            assert pick is None and opts[1].setup == s and opts[1].fits == "unknown"
-            continue
         assert pick.setup == s
         if i < 4:
             before = opts[opts.index(pick) - 1]
             assert before.setup == runs[i + 1][1]
             assert (before.fits, before.reason) == ("no", "GPU memory")
+
+
+def test_trace_is_passed_through():
+    size, s = sweep.recommend_grid()[2]
+    assert "--trace" in sweep.command(size, s, "/out", 29600, trace=True)
+    assert "--trace" not in sweep.command(size, s, "/out", 29600)

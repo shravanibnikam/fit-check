@@ -96,6 +96,7 @@ class Estimate:
     step: int  # temporary fp32 gradient copies made at the optimizer step
     buffers: int  # DeepSpeed buffers on the GPU for the whole run
     gathered: int  # ZeRO-3 parameters still gathered at the start of backward
+    bucket: int  # ZeRO-1 reduce bucket kept between micro-batches
     allocated: int  # the peak: the larger of the two below
     backward: int  # at the start of backward
     at_step: int  # at the optimizer step
@@ -115,13 +116,13 @@ class Estimate:
 def unmodeled(model: Model, setup: Setup) -> tuple[str, ...]:
     """What the estimate leaves out for this model and setup, in plain words."""
     out = model.unmodeled
-    if setup.grad_accum > 1:
-        # calibrate/results/2026-11-14-recommend: Qwen2.5-0.5B, seq 2048,
-        # accumulation 4, fp16 on 2x T4. ZeRO-1 measured 12.31 GiB against
-        # 11.30 predicted, and ZeRO-0 ran out of memory at 14.30 predicted.
+    if setup.grad_accum > 1 and setup.zero_stage != 1:
+        # Measured only at ZeRO-1 (calibrate/results/2026-11-14-recommend).
+        # ZeRO-0 with accumulation 4 ran out of memory in its first step with
+        # more allocated than the formula gives for that step.
         reason = (
-            "gradient accumulation above 1: the measured runs used about 1 GiB "
-            "more than the formula, for a reason not yet found"
+            "gradient accumulation above 1 at ZeRO-0, 2 or 3: only ZeRO-1 is "
+            "measured, and ZeRO-0 used more than the formula on the T4"
         )
         out += (reason,)
     return out
@@ -256,13 +257,23 @@ def estimate(model: Model, setup: Setup) -> Estimate:
             # accumulated_grads_in_cpu: a param-sized buffer per owned parameter.
             cpu += b * trainable
     gathered = b * _gathered_at_backward(model, total) if stage == 3 else 0
+    # ZeRO-1 with gradient accumulation: the first gradient hook of every
+    # backward allocates the reduce bucket (setup_buckets, called from
+    # process_gradients in stage_1_and_2.py), but only the epilogue at the
+    # accumulation boundary frees it (reduce_gradients ->
+    # independent_gradient_partition_epilogue -> _release_ipg_buffers). So the
+    # bucket from the first micro-batch is alive at the start of every later
+    # backward. ZeRO-2 runs the epilogue after every micro-batch
+    # (engine.allreduce_gradients). Found in an allocator trace of Qwen2.5-0.5B
+    # with accumulation 4 on the T4 (docs/memory-model.md, "ZeRO stages").
+    bucket = b * REDUCE_BUCKET if stage == 1 and setup.grad_accum > 1 else 0
 
     act = activations(model, setup, b)
     layers, logits = (act.layers, act.logits) if act else (None, None)
     # Activations peak at the start of backward and are gone by the optimizer
     # step, where the gradients and the fp32 copies are. ZeRO-3 releases the
     # gathered parameters when backward ends.
-    backward = weights + optimizer + held_in_backward + buffers + gathered
+    backward = weights + optimizer + held_in_backward + buffers + gathered + bucket
     backward += (layers or 0) + (logits or 0)
     at_step = weights + optimizer + grads + step + buffers
     allocated = max(backward, at_step)
@@ -276,6 +287,7 @@ def estimate(model: Model, setup: Setup) -> Estimate:
         step=step,
         buffers=buffers,
         gathered=gathered,
+        bucket=bucket,
         allocated=allocated,
         backward=backward,
         at_step=at_step,

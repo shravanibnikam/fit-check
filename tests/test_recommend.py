@@ -144,7 +144,9 @@ def test_deepspeed_accepts_every_config(stage, opt, param, dtype):
     assert zero.sub_group_size == recommend.ZERO3_SUB_GROUP
 
 
-def test_gradient_accumulation_is_not_recommended(model):
+def test_gradient_accumulation_only_at_zero1(model):
+    # Only ZeRO-1 with accumulation is measured; the other stages are unknown.
     opts = options(model, Setup(num_gpus=2, grad_accum=4), gpu_mem=100 * GIB)
-    assert {o.fits for o in opts} == {"unknown"}
-    assert best(opts) is None
+    for o in opts:
+        assert o.fits == ("yes" if o.setup.zero_stage == 1 else "unknown")
+    assert best(opts).setup.zero_stage == 1

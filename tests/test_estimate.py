@@ -161,7 +161,7 @@ def held(zero_stage, grad_accum, offload_optimizer=False, num_gpus=2):
     )
     e = estimate(QWEN_05B, setup)
     # What backward holds beyond the other terms: the gradients.
-    held = e.backward - e.weights - e.optimizer - e.buffers - e.gathered
+    held = e.backward - e.weights - e.optimizer - e.buffers - e.gathered - e.bucket
     return held - (e.activations or 0) - (e.logits or 0), e
 
 
@@ -175,6 +175,15 @@ def test_grad_accum_holds_earlier_gradients_by_stage():
     assert held(1, 4)[0] == 2 * p  # ZeRO-1 reduces only at the boundary
     assert held(2, 4)[0] == 2 * p // 2  # ZeRO-2 keeps its partition
     assert held(2, 4)[0] == held(2, 4)[1].grads
+
+
+def test_zero1_keeps_its_reduce_bucket_between_micro_batches():
+    # The bucket from the first micro-batch is alive in every later backward,
+    # and freed at the boundary, so the optimizer step doesn't see it.
+    one, four = held(1, 1)[1], held(1, 4)[1]
+    assert one.bucket == 0 and four.bucket == 2 * REDUCE_BUCKET
+    assert four.at_step == one.at_step
+    assert held(2, 4)[1].bucket == held(0, 4)[1].bucket == 0
 
 
 def test_grad_accum_with_optimizer_offload():
