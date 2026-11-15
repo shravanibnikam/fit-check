@@ -23,6 +23,7 @@ from fitcheck.estimate import (
     Estimate,
     Setup,
     estimate,
+    unmodeled,
 )
 from fitcheck.model import Model
 
@@ -86,7 +87,7 @@ def options(
             elif host_mem is not None and est.cpu > host_mem:
                 fits, reason = "no", "host RAM"
             # What is not modeled only adds memory, so "no" holds; "yes" would not.
-            elif model.unmodeled or est.activations is None:
+            elif unmodeled(model, setup) or est.activations is None:
                 fits, reason = "unknown", ""
             else:
                 fits, reason = "yes", ""

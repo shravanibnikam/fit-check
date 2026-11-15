@@ -94,6 +94,7 @@ def test_grad_accum_flag_shows_in_header(folder, capsys):
     main([folder, "--grad-accum", "4"])
     out = capsys.readouterr().out
     assert "gradient accumulation 4" in out
+    assert "Not modeled: gradient accumulation above 1" in out
 
 
 def test_loss_tokens_is_shown_and_shrinks_the_head(folder, capsys):

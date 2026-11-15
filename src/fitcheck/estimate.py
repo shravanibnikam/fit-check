@@ -112,6 +112,21 @@ class Estimate:
         return self.allocated + self.overhead
 
 
+def unmodeled(model: Model, setup: Setup) -> tuple[str, ...]:
+    """What the estimate leaves out for this model and setup, in plain words."""
+    out = model.unmodeled
+    if setup.grad_accum > 1:
+        # calibrate/results/2026-11-14-recommend: Qwen2.5-0.5B, seq 2048,
+        # accumulation 4, fp16 on 2x T4. ZeRO-1 measured 12.31 GiB against
+        # 11.30 predicted, and ZeRO-0 ran out of memory at 14.30 predicted.
+        reason = (
+            "gradient accumulation above 1: the measured runs used about 1 GiB "
+            "more than the formula, for a reason not yet found"
+        )
+        out += (reason,)
+    return out
+
+
 def lora_params(model: Model, rank: int) -> int:
     """Adapter parameters for LoRA on every q, k, v and o projection.
 

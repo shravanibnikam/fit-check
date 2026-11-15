@@ -6,7 +6,7 @@ import json
 import sys
 
 from fitcheck import hub, recommend
-from fitcheck.estimate import CALIBRATION, DTYPE_BYTES, Setup, estimate
+from fitcheck.estimate import CALIBRATION, DTYPE_BYTES, Setup, estimate, unmodeled
 from fitcheck.model import LORA_TARGETS, from_config
 
 GIB = 1024**3
@@ -97,7 +97,8 @@ def main(argv: list[str] | None = None) -> None:
     if est.cpu:
         print(f"CPU RAM for offload, all ranks: {est.cpu / GIB:.2f} GiB")
     print()
-    _print_caveats(model, args)
+    _print_caveats(model, setup, args)
+    gaps = unmodeled(model, setup)
     if est.peak_at == "step" and est.activations is not None:
         print(
             "The peak is at the optimizer step, after activations are freed: "
@@ -106,11 +107,11 @@ def main(argv: list[str] | None = None) -> None:
     if args.gpu_mem is not None:
         fits = est.gpu_total <= args.gpu_mem * GIB
         # What is left out only adds memory, so "no" holds; "yes" would not.
-        if not fits and model.unmodeled:
+        if not fits and gaps:
             verdict = "no, even without what is not modeled"
         elif not fits:
             verdict = "no"
-        elif model.unmodeled:
+        elif gaps:
             verdict = "unknown, because the estimate leaves out what is listed above"
         else:
             verdict = "yes"
@@ -182,7 +183,7 @@ def recommend_main(argv: list[str]) -> None:
         "checked. The measured offload runs needed about twice the estimate "
         "(docs/memory-model.md)."
     )
-    _print_caveats(model, args)
+    _print_caveats(model, base, args)
     _print_calibration()
     print()
     if pick is None:
@@ -285,9 +286,9 @@ def _print_model(model) -> None:
     )
 
 
-def _print_caveats(model, args) -> None:
-    """What the estimate leaves out or assumes about this model."""
-    for reason in model.unmodeled:
+def _print_caveats(model, setup, args) -> None:
+    """What the estimate leaves out or assumes about this model and setup."""
+    for reason in unmodeled(model, setup):
         print(f"Not modeled: {reason}.")
     if args.lora_rank is not None:
         # Group targets missing from the same layers into one line.

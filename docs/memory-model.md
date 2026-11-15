@@ -48,7 +48,7 @@ Each ZeRO stage partitions one more kind of state across the N ranks (ZeRO paper
 
 With Ψ = 7.5B, N = 64 and mixed precision, stages 0, 2 and 3 give 120 GB, 16.6 GB and 1.88 GB, matching Figure 1 of the paper. The tests check these values.
 
-The paper's stage 1 keeps full gradients (31.4 GB). DeepSpeed doesn't, when gradient accumulation is 1: at the end of backward ZeRO-1 copies the gradients into its reduce bucket, reduces them and drops them, keeping only its own partition (`reduce_gradients` and `reduce_independent_p_g_buckets_and_remove_grads` in `stage_1_and_2.py`). On the T4, ZeRO-1 measured exactly the same as ZeRO-2. With `--grad-accum` above 1, the gradients of the earlier micro-batches are alive when the last backward starts, and FitCheck adds them to that moment. ZeRO-0 and 1 reduce only at the accumulation boundary, so they keep full gradients (`process_gradients` and `reduce_gradients`). ZeRO-2 reduces after every micro-batch and keeps its own partition (`independent_gradient_partition_epilogue`). ZeRO-2 with optimizer offload adds each partition into a CPU buffer (`async_accumulate_grad_in_cpu_via_gpu`), so nothing stays on the GPU, and the CPU estimate grows by one gradient copy. ZeRO-3 already holds its partition. The gradients stay in the training dtype, because DeepSpeed's default `gradient_accumulation_dtype` is the model dtype. This comes from reading the DeepSpeed v0.19.9 source and is not yet measured: `calibrate/run_one.py --grad-accum N` exists to do that on Kaggle.
+The paper's stage 1 keeps full gradients (31.4 GB). DeepSpeed doesn't, when gradient accumulation is 1: at the end of backward ZeRO-1 copies the gradients into its reduce bucket, reduces them and drops them, keeping only its own partition (`reduce_gradients` and `reduce_independent_p_g_buckets_and_remove_grads` in `stage_1_and_2.py`). On the T4, ZeRO-1 measured exactly the same as ZeRO-2. With `--grad-accum` above 1, the gradients of the earlier micro-batches are alive when the last backward starts, and FitCheck adds them to that moment. ZeRO-0 and 1 reduce only at the accumulation boundary, so they keep full gradients (`process_gradients` and `reduce_gradients`). ZeRO-2 reduces after every micro-batch and keeps its own partition (`independent_gradient_partition_epilogue`). ZeRO-2 with optimizer offload adds each partition into a CPU buffer (`async_accumulate_grad_in_cpu_via_gpu`), so nothing stays on the GPU, and the CPU estimate grows by one gradient copy. ZeRO-3 already holds its partition. The gradients stay in the training dtype, because DeepSpeed's default `gradient_accumulation_dtype` is the model dtype. This comes from reading the DeepSpeed v0.19.9 source, and the first measurement disagrees with it. With Qwen2.5-0.5B at sequence length 2048 and accumulation 4 on 2x T4 (`calibrate/results/2026-11-14-recommend/`), ZeRO-1 peaked at 12.31 GiB allocated against 11.30 predicted, 1.01 GiB more, and ZeRO-0, predicted at 14.30 GiB with the CUDA context, ran out of memory on the 14.56 GiB T4. The gap is the same in every step, the first one included, before Adam's moments exist, and the source reading above doesn't explain it. In fp16 DeepSpeed accumulates in `param.grad` itself (`use_grad_accum_attribute` is off when the gradient accumulation dtype is the model dtype, `stage_1_and_2.py`). Until an allocator trace (`run_one.py --trace`) names the buffer, FitCheck lists gradient accumulation above 1 as not modeled, so the verdict is "unknown" and `recommend` writes no config.
 
 ## Offload
 
@@ -248,6 +248,20 @@ So ZeRO-3 without checkpointing ranks above ZeRO-2 with it. Whether 1.5 times th
 `tests/test_recommend.py` loads every combination of stage, offload and dtype with DeepSpeed's own parser (`DeepSpeedConfig` in `deepspeed/runtime/config.py`, which rejects unknown keys) and checks that it reads back the values above. `calibrate/run_one.py` builds its config with the same function, changing only the initial loss scale. The runs in `calibrate/results/` were made before that, with a shorter config whose effective values are the same, since every added key is at its default.
 
 The training script must still set what the config can't hold: the attention implementation, `gradient_checkpointing_enable()` and `model.train()`, the LoRA targets, and `logits_to_keep` for loss on the last tokens. `fitcheck recommend` prints these.
+
+### Checked on the T4
+
+`sweep.py --grid recommend` ran what `recommend --gpus 2 --gpu-mem 14.56 --dtype fp16` picked for three goals, each with the generated config, and for two goals also the cheaper setup it rejected (`calibrate/results/2026-11-14-recommend/`):
+
+| Goal | Setup | Predicted GiB | Measured GiB | Result |
+|---|---|---|---|---|
+| 0.5B full, seq 4096 | ZeRO-1, checkpointing (picked) | 11.99 | 12.00 | trained |
+| 0.5B full, seq 4096 | ZeRO-0, checkpointing (rejected) | 14.75 | - | out of memory |
+| 0.5B full, seq 2048, accumulation 4 | ZeRO-1 (picked) | 11.30 | 12.31 | trained |
+| 0.5B full, seq 2048, accumulation 4 | ZeRO-0 (rejected by the margin) | 14.06 | - | out of memory |
+| 1.5B LoRA r=16, seq 4096 | ZeRO-0, checkpointing (picked) | 11.40 | 11.42 | trained |
+
+Predicted and measured are peak allocated memory, without the CUDA context. All three picks trained, and both rejected setups ran out of memory. Without the margin, ZeRO-0 with accumulation 4 would have been called a fit. The margin saved that verdict, but only because the gap was small next to it: the 8.2% error on the ZeRO-1 run with accumulation is more than twice the margin. Gradient accumulation is now reported as not modeled (see "ZeRO stages").
 
 ## Not modeled yet
 

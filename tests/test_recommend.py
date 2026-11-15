@@ -142,3 +142,9 @@ def test_deepspeed_accepts_every_config(stage, opt, param, dtype):
     assert zero.reduce_bucket_size == recommend.REDUCE_BUCKET
     assert zero.max_reuse_distance == recommend.MAX_REUSE_DISTANCE
     assert zero.sub_group_size == recommend.ZERO3_SUB_GROUP
+
+
+def test_gradient_accumulation_is_not_recommended(model):
+    opts = options(model, Setup(num_gpus=2, grad_accum=4), gpu_mem=100 * GIB)
+    assert {o.fits for o in opts} == {"unknown"}
+    assert best(opts) is None
